@@ -1,0 +1,28 @@
+{%- liquid
+  assign variant = product.selected_or_first_available_variant
+  assign edition = block.settings.edition_size
+  assign qty = variant.inventory_quantity
+
+  if variant.available == false
+    assign state = 'out'
+  elsif variant.inventory_management == blank
+    assign state = 'ok'
+  elsif qty <= 1
+    assign state = 'low'
+  else
+    assign state = 'ok'
+  endif
+-%}
+
+<p class="scarcity scarcity--{{ state }}" aria-live="polite" {{ block.shopify_attributes }}>
+  <span class="scarcity__text">
+    {%- if state == 'out' -%}
+      Sold out
+    {%- elsif variant.inventory_management == blank -%}
+      Available
+    {%- else -%}
+      {{ qty }} of {{ edition }} available
+    {%- endif -%}
+  </span>
+  <span class="scarcity__dot" aria-hidden="true"></span>
+</p>

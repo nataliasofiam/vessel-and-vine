@@ -9,6 +9,7 @@
     data-zoom-on-hover
   {% endif %}
 >
+  {{ 'component-scarcity.css' | asset_url | stylesheet_tag }}
   {{ 'section-main-product.css' | asset_url | stylesheet_tag }}
   {{ 'component-accordion.css' | asset_url | stylesheet_tag }}
   {{ 'component-price.css' | asset_url | stylesheet_tag }}
@@ -86,8 +87,31 @@
           >
             {%- assign product_form_id = 'product-form-' | append: section.id -%}
 
+            
             {%- for block in section.blocks -%}
+              
               {%- case block.type -%}
+                {%- when 'scarcity' -%}
+                  {% render 'scarcityindicator', block: block, product: product %}
+      {%- assign qty = product.selected_or_first_available_variant.inventory_quantity -%}
+      {%- assign edition_size = block.settings.edition_size -%}
+      {%- assign low_threshold = edition_size | divided_by: 2.0 -%}
+
+      {%- if product.selected_or_first_available_variant.available == false -%}
+        <p class="scarcity scarcity--sold">Sold out</p>
+      {%- elsif qty <= 1 -%}
+        <p class="scarcity scarcity--critical">
+          <span class="scarcity__dot"></span>{{ qty }} of {{ edition_size }} available
+        </p>
+      {%- elsif qty <= low_threshold -%}
+        <p class="scarcity scarcity--low">
+          <span class="scarcity__dot"></span>{{ qty }} of {{ edition_size }} available
+        </p>
+      {%- else -%}
+        <p class="scarcity scarcity--ok">
+          <span class="scarcity__dot"></span>{{ qty }} of {{ edition_size }} available
+        </p>
+      {%- endif -%}
                 {%- when '@app' -%}
                   {% render block %}
                 {%- when 'text' -%}
@@ -763,6 +787,19 @@
       "type": "@app"
     },
     {
+      "type": "scarcity",
+      "name": "Scarcity indicator",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "number",
+          "id": "edition_size",
+          "label": "Original batch size",
+          "default": 5
+        }
+  ]
+},
+    {
       "type": "text",
       "name": "t:sections.main-product.blocks.text.name",
       "settings": [
@@ -873,6 +910,7 @@
         }
       ]
     },
+
     {
       "type": "quantity_selector",
       "name": "t:sections.main-product.blocks.quantity_selector.name",
