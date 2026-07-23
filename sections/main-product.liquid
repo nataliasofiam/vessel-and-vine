@@ -87,33 +87,13 @@
           >
             {%- assign product_form_id = 'product-form-' | append: section.id -%}
 
-            
             {%- for block in section.blocks -%}
               
               {%- case block.type -%}
-                {%- when 'scarcity' -%}
-                  {% render 'scarcityindicator', block: block, product: product %}
-      {%- assign qty = product.selected_or_first_available_variant.inventory_quantity -%}
-      {%- assign edition_size = block.settings.edition_size -%}
-      {%- assign low_threshold = edition_size | divided_by: 2.0 -%}
-
-      {%- if product.selected_or_first_available_variant.available == false -%}
-        <p class="scarcity scarcity--sold">Sold out</p>
-      {%- elsif qty <= 1 -%}
-        <p class="scarcity scarcity--critical">
-          <span class="scarcity__dot"></span>{{ qty }} of {{ edition_size }} available
-        </p>
-      {%- elsif qty <= low_threshold -%}
-        <p class="scarcity scarcity--low">
-          <span class="scarcity__dot"></span>{{ qty }} of {{ edition_size }} available
-        </p>
-      {%- else -%}
-        <p class="scarcity scarcity--ok">
-          <span class="scarcity__dot"></span>{{ qty }} of {{ edition_size }} available
-        </p>
-      {%- endif -%}
                 {%- when '@app' -%}
                   {% render block %}
+                  {%- when 'scarcity' -%}
+                  {% render 'scarcityindicator', block: block, product: product %}
                 {%- when 'text' -%}
                   <p
                     class="product__text inline-richtext{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}"

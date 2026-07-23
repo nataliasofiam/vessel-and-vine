@@ -2,12 +2,15 @@
   assign variant = product.selected_or_first_available_variant
   assign edition = block.settings.edition_size
   assign qty = variant.inventory_quantity
+  assign low_threshold = edition | divided_by: 2.0
 
   if variant.available == false
-    assign state = 'out'
+    assign state = 'sold'
   elsif variant.inventory_management == blank
     assign state = 'ok'
   elsif qty <= 1
+    assign state = 'critical'
+  elsif qty <= low_threshold
     assign state = 'low'
   else
     assign state = 'ok'
@@ -16,7 +19,7 @@
 
 <p class="scarcity scarcity--{{ state }}" aria-live="polite" {{ block.shopify_attributes }}>
   <span class="scarcity__text">
-    {%- if state == 'out' -%}
+    {%- if state == 'sold' -%}
       Sold out
     {%- elsif variant.inventory_management == blank -%}
       Available
