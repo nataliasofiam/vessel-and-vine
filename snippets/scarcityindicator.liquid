@@ -18,7 +18,10 @@
 -%}
 
 <p class="scarcity scarcity--{{ state }}" aria-live="polite" {{ block.shopify_attributes }}>
-  <span class="scarcity__text">
+    <span class="scarcity__dot svg-wrapper" aria-hidden="true">
+  {{- 'icon-inventory-status.svg' | inline_asset_content -}}
+</span>
+    <span class="scarcity__text">
     {%- if state == 'sold' -%}
       Sold out
     {%- elsif variant.inventory_management == blank -%}
@@ -27,5 +30,4 @@
       {{ qty }} of {{ edition }} available
     {%- endif -%}
   </span>
-  <span class="scarcity__dot" aria-hidden="true"></span>
 </p>

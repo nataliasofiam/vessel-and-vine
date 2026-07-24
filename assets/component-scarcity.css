@@ -1,27 +1,32 @@
-  .scarcity {
-    --scarcity-dot: var(--scarcity-ok);
-    --scarcity-ok: #6E9C70;
-    --scarcity-low: #C98A3E;
-    --scarcity-out: #8A8A8A;
+.scarcity {
+  --scarcity-ok: #3ED660;
+  --scarcity-low: #EE9441;
+  --scarcity-critical: #D64545;
+  --scarcity-sold: #C8C8C8;
 
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.125rem 1rem;
-    margin: 0;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    color: var(--color-foreground, #E8E8E8);
-  }
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
 
-  .scarcity--low { --scarcity-dot: var(--scarcity-low); }
-  .scarcity--out { --scarcity-dot: var(--scarcity-out); }
+.scarcity__dot,
+.scarcity__dot svg {
+  inline-size: 15px;
+  block-size: 15px;
+  flex-shrink: 0;
+}
 
-  .scarcity__dot {
-    inline-size: 0.625rem;
-    block-size: 0.625rem;
-    border-radius: 50%;
-    background: var(--scarcity-dot);
-    flex-shrink: 0;
-  }
+.scarcity__dot {
+  color: var(--scarcity-ok);
+}
+
+.scarcity__dot .icon-inventory-status circle:first-of-type {
+  opacity: 0.3;
+}
+
+.scarcity--low .scarcity__dot      { color: var(--scarcity-low); }
+.scarcity--critical .scarcity__dot { color: var(--scarcity-critical); }
+.scarcity--sold .scarcity__dot     { color: var(--scarcity-sold); }
