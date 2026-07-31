@@ -1,69 +1,385 @@
+{%- liquid
+  assign img = section.settings.image
+  assign cols = section.blocks.size
+  if cols == 0
+    assign cols = 1
+  endif
+-%}
+
 <style>
   .vv-hero {
     position: relative;
     width: 100%;
     height: {{ section.settings.hero_height }}vh;
-    overflow: hidden;
+    background: {{ section.settings.fallback_color }};
   }
 
-  .vv-hero__bg {
+  .vv-hero__media,
+  .vv-hero__canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    object-position: {{ section.settings.focal }};
     display: block;
   }
 
-  .vv-hero__panels {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: 100%;
-}
-
-.vv-hero__panel {
-  height: 100%;
-  min-height: 100%;
-}
-
-  .vv-hero__panel + .vv-hero__panel {
-    border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity }});
+  .vv-hero__media {
+    object-fit: cover;
+    object-position: {{ section.settings.focal }};
   }
 
-  .vv-hero__panel--glass {
-    backdrop-filter: blur(4px) saturate(1.15) brightness(1.05);
-    -webkit-backdrop-filter: blur(4px) saturate(1.15) brightness(1.05);
-    background: rgba(255, 255, 255, 0.03);
+  .vv-hero__canvas {
+    opacity: 0;
+    transition: opacity 600ms ease;
+    pointer-events: none;
+  }
+
+  .vv-hero__canvas.is-ready {
+    opacity: 1;
+  }
+
+  .vv-hero__panels {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat({{ cols }}, 1fr);
+    pointer-events: none;
+  }
+
+  .vv-hero__panel {
+    height: 100%;
+  }
+
+  .vv-hero__panel + .vv-hero__panel {
+    border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity | divided_by: 100.0 }});
   }
 
   @media (max-width: 750px) {
-    .vv-hero { height: 60vh; }
+    .vv-hero {
+      height: {{ section.settings.hero_height_mobile }}vh;
+    }
   }
 </style>
 
-<div class="vv-hero">
-  {%- if section.settings.image != blank -%}
-    {{ section.settings.image | image_url: width: 2400 | image_tag: class: 'vv-hero__bg', loading: 'eager' }}
-  {%- else -%}
-    <div class="vv-hero__bg" style="background: #1a2c40;"></div>
+<div
+  class="vv-hero"
+  id="vv-hero-{{ section.id }}"
+  data-vv-hero
+  data-cols="{{ cols }}"
+  data-glass="{% for block in section.blocks %}{% if block.settings.glass %}1{% else %}0{% endif %}{% unless forloop.last %},{% endunless %}{% endfor %}"
+  data-strength="{{ section.settings.mouse_strength | divided_by: 1000.0 }}"
+  data-radius="{{ section.settings.mouse_radius | divided_by: 100.0 }}"
+  data-glass-strength="{{ section.settings.glass_strength | divided_by: 1000.0 }}"
+  data-ease="{{ section.settings.ease | divided_by: 100.0 }}"
+>
+  {%- if img != blank -%}
+    <img
+      class="vv-hero__media"
+      src="{{ img | image_url: width: 2400 }}"
+      srcset="{{ img | image_url: width: 1200 }} 1200w, {{ img | image_url: width: 2400 }} 2400w"
+      sizes="100vw"
+      width="{{ img.width }}"
+      height="{{ img.height }}"
+      alt="{{ img.alt | escape }}"
+      loading="eager"
+      fetchpriority="high"
+      data-vv-hero-image
+    >
+    <canvas class="vv-hero__canvas" data-vv-hero-canvas aria-hidden="true"></canvas>
   {%- endif -%}
 
   <div class="vv-hero__panels">
     {%- for block in section.blocks -%}
       <div
-  class="vv-hero__panel{% if block.settings.glass %} vv-hero__panel--glass{% endif %}"
-  {{ block.shopify_attributes }}
->&nbsp;</div>
+        class="vv-hero__panel{% if block.settings.glass %} vv-hero__panel--glass{% endif %}"
+        {{ block.shopify_attributes }}
+      >&nbsp;</div>
     {%- endfor -%}
   </div>
 </div>
+
+<script>
+  (function () {
+    var root = document.getElementById('vv-hero-{{ section.id }}');
+    if (!root) return;
+    if (root.dataset.vvInit === '1') return;
+    root.dataset.vvInit = '1';
+
+    var img = root.querySelector('[data-vv-hero-image]');
+    var canvas = root.querySelector('[data-vv-hero-canvas]');
+    if (!img || !canvas) return;
+
+    // Bail out where the effect is pointless or unwelcome.
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (reduced || !finePointer) return;
+
+    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return;
+
+    var MAX_COLS = 8;
+
+    var cols = Math.min(parseInt(root.dataset.cols, 10) || 1, MAX_COLS);
+    var glassFlags = (root.dataset.glass || '')
+      .split(',')
+      .map(function (v) { return parseFloat(v) || 0; })
+      .slice(0, MAX_COLS);
+    while (glassFlags.length < MAX_COLS) glassFlags.push(0);
+
+    var strength = parseFloat(root.dataset.strength) || 0.03;
+    var radius = 5;
+    var glassStrength = parseFloat(root.dataset.glassStrength) || 0.012;
+    var ease = parseFloat(root.dataset.ease) || 0.06;
+
+    var vertSrc = [
+      'attribute vec2 a_position;',
+      'varying vec2 v_uv;',
+      'void main() {',
+      '  v_uv = a_position * 0.5 + 0.5;',
+      '  gl_Position = vec4(a_position, 0.0, 1.0);',
+      '}'
+    ].join('\n');
+
+    var fragSrc = [
+      'precision mediump float;',
+      '',
+      'uniform sampler2D u_image;',
+      'uniform vec2 u_mouse;',
+      'uniform float u_canvasAspect;',
+      'uniform float u_imageAspect;',
+      'uniform float u_strength;',
+      'uniform float u_radius;',
+      'uniform float u_glassStrength;',
+      'uniform float u_cols;',
+      'uniform float u_glass[' + MAX_COLS + '];',
+      'uniform float u_active;',
+      '',
+      'varying vec2 v_uv;',
+      '',
+      'float glassAt(float idx) {',
+      '  float g = 0.0;',
+      '  for (int i = 0; i < ' + MAX_COLS + '; i++) {',
+      '    if (float(i) == idx) g = u_glass[i];',
+      '  }',
+      '  return g;',
+      '}',
+      '',
+      '// Replicate object-fit: cover inside the shader.',
+      'vec2 coverUv(vec2 uv) {',
+      '  vec2 scale = vec2(1.0);',
+      '  if (u_canvasAspect > u_imageAspect) {',
+      '    scale.y = u_imageAspect / u_canvasAspect;',
+      '  } else {',
+      '    scale.x = u_canvasAspect / u_imageAspect;',
+      '  }',
+      '  return (uv - 0.5) * scale + 0.5;',
+      '}',
+      '',
+      'void main() {',
+      '  vec2 uv = v_uv;',
+      '',
+      '  // Which column is this fragment in, and where inside it.',
+      '  float colWidth = 1.0 / u_cols;',
+      '  float colIndex = floor(uv.x / colWidth);',
+      '  float glass = glassAt(colIndex);',
+      '  float localX = fract(uv.x / colWidth);',
+      '',
+      '  // Static refraction: strongest at the column edges, zero at centre.',
+      '  float edge = (localX - 0.5) * 2.0;',
+      '  float staticOffset = glass * u_glassStrength * edge * abs(edge);',
+      '',
+      '  // Mouse lens, aspect-corrected so the falloff stays circular.',
+      '  vec2 d = uv - u_mouse;',
+      '  d.x *= u_canvasAspect;',
+      '  float dist = length(d);',
+      '  float falloff = smoothstep(u_radius, 0.0, dist);',
+      '  float amp = u_strength * falloff * u_active * (1.0 + glass);',
+      '  vec2 lens = normalize(d + vec2(1e-6)) * amp;',
+      '  lens.x /= u_canvasAspect;',
+      '',
+      '  vec2 sampleUv = coverUv(uv - lens - vec2(staticOffset, 0.0));',
+      '  sampleUv = clamp(sampleUv, 0.001, 0.999);',
+      '',
+      '  gl_FragColor = texture2D(u_image, sampleUv);',
+      '}'
+    ].join('\n');
+
+    function compile(type, src) {
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error('[vv-hero] shader compile failed:', gl.getShaderInfoLog(s));
+        return null;
+      }
+      return s;
+    }
+
+    var vs = compile(gl.VERTEX_SHADER, vertSrc);
+    var fs = compile(gl.FRAGMENT_SHADER, fragSrc);
+    if (!vs || !fs) return;
+
+    var program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error('[vv-hero] program link failed:', gl.getProgramInfoLog(program));
+      return;
+    }
+    gl.useProgram(program);
+
+    // One full-screen quad. All the work happens per fragment.
+    var buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1,  1, -1,  -1, 1,
+      -1,  1,  1, -1,   1, 1
+    ]), gl.STATIC_DRAW);
+
+    var aPosition = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(aPosition);
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+
+    var uImage = gl.getUniformLocation(program, 'u_image');
+    var uMouse = gl.getUniformLocation(program, 'u_mouse');
+    var uCanvasAspect = gl.getUniformLocation(program, 'u_canvasAspect');
+    var uImageAspect = gl.getUniformLocation(program, 'u_imageAspect');
+    var uStrength = gl.getUniformLocation(program, 'u_strength');
+    var uRadius = gl.getUniformLocation(program, 'u_radius');
+    var uGlassStrength = gl.getUniformLocation(program, 'u_glassStrength');
+    var uCols = gl.getUniformLocation(program, 'u_cols');
+    var uGlass = gl.getUniformLocation(program, 'u_glass');
+    var uActive = gl.getUniformLocation(program, 'u_active');
+
+    gl.uniform1i(uImage, 0);
+    gl.uniform1f(uStrength, strength);
+    gl.uniform1f(uRadius, radius);
+    gl.uniform1f(uGlassStrength, glassStrength);
+    gl.uniform1f(uCols, cols);
+    gl.uniform1fv(uGlass, new Float32Array(glassFlags));
+
+    var texture = gl.createTexture();
+    var imageAspect = 1;
+
+    function resize() {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = Math.round(canvas.clientWidth * dpr);
+      var h = Math.round(canvas.clientHeight * dpr);
+      if (w === 0 || h === 0) return;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uCanvasAspect, canvas.width / canvas.height);
+    }
+
+    var target = { x: 0.5, y: 0.5 };
+    var mouse = { x: 0.5, y: 0.5 };
+    var active = 0;
+    var targetActive = 0;
+    var rafId = null;
+    var running = false;
+
+    root.addEventListener('pointermove', function (e) {
+      var r = root.getBoundingClientRect();
+      target.x = (e.clientX - r.left) / r.width;
+      // Pointer y runs downward; texture v runs upward.
+      target.y = 1 - (e.clientY - r.top) / r.height;
+      targetActive = 1;
+    });
+
+    root.addEventListener('pointerleave', function () {
+      targetActive = 0;
+    });
+
+    function frame() {
+      mouse.x += (target.x - mouse.x) * ease;
+      mouse.y += (target.y - mouse.y) * ease;
+      active += (targetActive - active) * ease;
+
+      gl.uniform2f(uMouse, mouse.x, mouse.y);
+      gl.uniform1f(uActive, active);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      rafId = window.requestAnimationFrame(frame);
+    }
+
+    function start() {
+      if (running) return;
+      running = true;
+      frame();
+    }
+
+    function stop() {
+      running = false;
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
+    function loadTexture(source) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+      imageAspect = source.naturalWidth / source.naturalHeight;
+      gl.uniform1f(uImageAspect, imageAspect);
+
+      resize();
+      canvas.classList.add('is-ready');
+      start();
+    }
+
+    // Load a clean CORS-enabled copy rather than reusing the visible <img>,
+    // which may already be cached without CORS headers.
+    var texImg = new Image();
+    texImg.crossOrigin = 'anonymous';
+    texImg.onload = function () { loadTexture(texImg); };
+    texImg.onerror = function () {
+      console.warn('[vv-hero] texture failed to load; leaving static image in place.');
+    };
+    texImg.src = img.currentSrc || img.src;
+
+    window.addEventListener('resize', resize);
+
+    // Pause when the hero is off screen.
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            if (canvas.classList.contains('is-ready')) start();
+          } else {
+            stop();
+          }
+        });
+      }, { threshold: 0 }).observe(root);
+    }
+
+    document.addEventListener('shopify:section:unload', function (e) {
+      if (e.detail && e.detail.sectionId === '{{ section.id }}') stop();
+    });
+  })();
+</script>
 
 {% schema %}
 {
   "name": "Hero",
   "settings": [
-    { "type": "image_picker", "id": "image", "label": "Hero image" },
+    {
+      "type": "image_picker",
+      "id": "image",
+      "label": "Hero image"
+    },
     {
       "type": "select",
       "id": "focal",
@@ -76,16 +392,81 @@
       "default": "center"
     },
     {
+      "type": "color",
+      "id": "fallback_color",
+      "label": "Fallback colour",
+      "default": "#1a2c40"
+    },
+    {
       "type": "range",
       "id": "hero_height",
-      "label": "Hero height",
-      "min": 40, "max": 100, "step": 5, "default": 85, "unit": "%"
+      "label": "Height (desktop)",
+      "min": 40,
+      "max": 100,
+      "step": 5,
+      "default": 85,
+      "unit": "vh"
+    },
+    {
+      "type": "range",
+      "id": "hero_height_mobile",
+      "label": "Height (mobile)",
+      "min": 30,
+      "max": 100,
+      "step": 5,
+      "default": 60,
+      "unit": "vh"
     },
     {
       "type": "range",
       "id": "divider_opacity",
-      "label": "Divider line opacity",
-      "min": 0, "max": 1, "step": 0.1, "default": 0.4
+      "label": "Divider opacity",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 35, 
+      "unit": "%"
+    },
+    {
+      "type": "header",
+      "content": "Distortion"
+    },
+    {
+      "type": "range",
+      "id": "mouse_strength",
+      "label": "Cursor lens strength",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 30
+    },
+    {
+      "type": "range",
+      "id": "mouse_radius",
+      "label": "Cursor lens radius",
+      "min": 5,
+      "max": 80,
+      "step": 5,
+      "default": 35, 
+      "unit": "%"
+    },
+    {
+      "type": "range",
+      "id": "glass_strength",
+      "label": "Glass edge refraction",
+      "min": 0,
+      "max": 50,
+      "step": 2,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "ease",
+      "label": "Cursor follow easing",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "default": 6
     }
   ],
   "blocks": [
@@ -93,7 +474,12 @@
       "type": "panel",
       "name": "Panel",
       "settings": [
-        { "type": "checkbox", "id": "glass", "label": "Glass effect", "default": false }
+        {
+          "type": "checkbox",
+          "id": "glass",
+          "label": "Glass effect",
+          "default": false
+        }
       ]
     }
   ],
