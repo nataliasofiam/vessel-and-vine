@@ -1,0 +1,106 @@
+<style>
+  .vv-hero {
+    position: relative;
+    width: 100%;
+    height: {{ section.settings.hero_height }}vh;
+    overflow: hidden;
+  }
+
+  .vv-hero__bg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: {{ section.settings.focal }};
+    display: block;
+  }
+
+  .vv-hero__panels {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat({{ section.blocks.size }}, 1fr);
+  }
+
+  .vv-hero__panel + .vv-hero__panel {
+    border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity }});
+  }
+
+  .vv-hero__panel--glass {
+    backdrop-filter: blur(4px) saturate(1.15) brightness(1.05);
+    -webkit-backdrop-filter: blur(4px) saturate(1.15) brightness(1.05);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  @media (max-width: 750px) {
+    .vv-hero { height: 60vh; }
+  }
+</style>
+
+<div class="vv-hero">
+  {%- if section.settings.image != blank -%}
+    {{ section.settings.image | image_url: width: 2400 | image_tag: class: 'vv-hero__bg', loading: 'eager' }}
+  {%- else -%}
+    <div class="vv-hero__bg" style="background: #1a2c40;"></div>
+  {%- endif -%}
+
+  <div class="vv-hero__panels">
+    {%- for block in section.blocks -%}
+      <div
+        class="vv-hero__panel{% if block.settings.glass %} vv-hero__panel--glass{% endif %}"
+        {{ block.shopify_attributes }}
+      ></div>
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Hero",
+  "settings": [
+    { "type": "image_picker", "id": "image", "label": "Hero image" },
+    {
+      "type": "select",
+      "id": "focal",
+      "label": "Image focal point",
+      "options": [
+        { "value": "center", "label": "Center" },
+        { "value": "top", "label": "Top" },
+        { "value": "bottom", "label": "Bottom" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "range",
+      "id": "hero_height",
+      "label": "Hero height",
+      "min": 40, "max": 100, "step": 5, "default": 85, "unit": "%"
+    },
+    {
+      "type": "range",
+      "id": "divider_opacity",
+      "label": "Divider line opacity",
+      "min": 0, "max": 1, "step": 0.1, "default": 0.4
+    }
+  ],
+  "blocks": [
+    {
+      "type": "panel",
+      "name": "Panel",
+      "settings": [
+        { "type": "checkbox", "id": "glass", "label": "Glass effect", "default": false }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Hero",
+      "blocks": [
+        { "type": "panel", "settings": { "glass": true } },
+        { "type": "panel" },
+        { "type": "panel" },
+        { "type": "panel", "settings": { "glass": true } }
+      ]
+    }
+  ]
+}
+{% endschema %}
