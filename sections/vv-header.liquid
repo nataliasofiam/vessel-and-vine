@@ -1,0 +1,446 @@
+{%- liquid
+  assign menu = linklists[section.settings.menu]
+  # Integer division floors, so `size + 1 / 2` puts the odd link on the left.
+  assign half = menu.links.size | plus: 1 | divided_by: 2
+-%}
+
+<style>
+  :root {
+    --vv-gutter: {{ section.settings.gutter }}px;
+    --vv-fillet: {{ section.settings.fillet }}px;
+    --vv-radius: {{ section.settings.corner_radius }}px;
+
+    /* The seamless-S rule: the concave arc must end where the convex one starts. */
+    --vv-notch-h: calc(var(--vv-gutter) + var(--vv-fillet) + var(--vv-radius));
+
+    --vv-w-collapsed: {{ section.settings.width_collapsed }}px;
+    --vv-w-expanded: {{ section.settings.width_expanded }}px;
+
+    --vv-shell: {{ section.settings.shell_color }};
+    --vv-fg: {{ section.settings.text_color }};
+    --vv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Push the page down so nothing hides beneath the fixed gutter strip. */
+  body {
+    padding-top: var(--vv-gutter);
+    background-color: var(--vv-shell);
+  }
+
+  /* ---- The gutter strip -------------------------------------------------- */
+
+  .vv-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    height: var(--vv-gutter);
+    background: var(--vv-shell);
+    pointer-events: none; /* the strip itself must not eat clicks */
+  }
+
+  /* ---- The notch --------------------------------------------------------- */
+
+  .vv-header__bar {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--vv-w-collapsed);
+    min-height: var(--vv-notch-h);
+    background: var(--vv-shell);
+    border-radius: 0 0 var(--vv-radius) var(--vv-radius);
+    pointer-events: auto;
+    transition: width 620ms var(--vv-ease);
+  }
+
+  /* The two concave fillets. Each is a square of shell colour with a
+     quarter-circle masked out, so the panel underneath shows through. */
+  .vv-header__bar::before,
+  .vv-header__bar::after {
+    content: '';
+    position: absolute;
+    top: var(--vv-gutter);
+    width: var(--vv-fillet);
+    height: var(--vv-fillet);
+    background: var(--vv-shell);
+    pointer-events: none;
+  }
+
+  .vv-header__bar::before {
+    right: 100%; /* sit flush against the notch's left edge */
+    -webkit-mask: radial-gradient(circle var(--vv-fillet) at 0 100%, transparent 98%, #000 100%);
+    mask: radial-gradient(circle var(--vv-fillet) at 0 100%, transparent 98%, #000 100%);
+  }
+
+  .vv-header__bar::after {
+    left: 100%;
+    -webkit-mask: radial-gradient(circle var(--vv-fillet) at 100% 100%, transparent 98%, #000 100%);
+    mask: radial-gradient(circle var(--vv-fillet) at 100% 100%, transparent 98%, #000 100%);
+  }
+
+  /* ---- Contents of the notch --------------------------------------------- */
+
+  .vv-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--vv-notch-h);
+    overflow: hidden; /* clips the links while the bar is narrow */
+    border-radius: 0 0 var(--vv-radius) var(--vv-radius);
+  }
+
+  /* flex: 1 on both navs gives them equal space, which keeps the logo dead
+     centre no matter how the links split. min-width: 0 lets them shrink
+     below their content width while the bar is collapsed. */
+  .vv-header__nav {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    align-items: center;
+    gap: {{ section.settings.link_gap }}px;
+    opacity: 0;
+    transition: opacity 260ms ease;
+  }
+
+  .vv-header__nav--left {
+    justify-content: flex-end;
+  }
+
+  .vv-header__nav--right {
+    justify-content: flex-start;
+  }
+
+  .vv-header__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 {{ section.settings.link_gap }}px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--vv-fg);
+    cursor: pointer;
+    font-family: var(--font-heading-family);
+    font-size: {{ section.settings.logo_size }}px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .vv-header__logo img {
+    display: block;
+    height: {{ section.settings.logo_size }}px;
+    width: auto;
+  }
+
+  .vv-header__link {
+    color: var(--vv-fg);
+    text-decoration: none;
+    font-size: 1.4rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    opacity: 0.72;
+    transition: opacity 200ms ease;
+  }
+
+  .vv-header__link:hover,
+  .vv-header__link.is-active {
+    opacity: 1;
+  }
+
+  /* ---- Open state -------------------------------------------------------- */
+
+  .vv-header[data-open='true'] .vv-header__bar {
+    width: min(var(--vv-w-expanded), calc(100vw - var(--vv-gutter) * 2));
+  }
+
+  .vv-header[data-open='true'] .vv-header__nav {
+    opacity: 1;
+    transition-delay: 180ms;
+  }
+
+  /* Desktop pointers get it on hover, no click needed. */
+  @media (hover: hover) and (min-width: 990px) {
+    .vv-header__bar:hover,
+    .vv-header__bar:focus-within {
+      width: min(var(--vv-w-expanded), calc(100vw - var(--vv-gutter) * 2));
+    }
+
+    .vv-header__bar:hover .vv-header__nav,
+    .vv-header__bar:focus-within .vv-header__nav {
+      opacity: 1;
+      transition-delay: 180ms;
+    }
+  }
+
+  /* ---- Mobile: the notch grows downward into a stacked menu -------------- */
+
+  @media (max-width: 989px) {
+    .vv-header__inner {
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .vv-header__logo {
+      order: -1; /* keep the wordmark in the notch, links below it */
+      min-height: var(--vv-notch-h);
+      margin: 0;
+    }
+
+    .vv-header__nav {
+      flex: 0 0 auto;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 18px;
+      width: 100%;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 420ms var(--vv-ease), opacity 260ms ease;
+    }
+
+    .vv-header[data-open='true'] .vv-header__nav {
+      max-height: 40vh;
+    }
+
+    .vv-header[data-open='true'] .vv-header__nav--right {
+      padding-bottom: 26px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vv-header__bar,
+    .vv-header__nav {
+      transition-duration: 1ms;
+    }
+  }
+</style>
+
+<div class="vv-header" data-vv-header data-open="false">
+  <div class="vv-header__bar">
+    <div class="vv-header__inner">
+      <nav class="vv-header__nav vv-header__nav--left">
+        {%- for link in menu.links -%}
+          {%- if forloop.index <= half -%}
+            <a
+              class="vv-header__link{% if link.active %} is-active{% endif %}"
+              href="{{ link.url }}"
+            >
+              {{- link.title | escape -}}
+            </a>
+          {%- endif -%}
+        {%- endfor -%}
+      </nav>
+
+      <button
+        class="vv-header__logo"
+        type="button"
+        data-vv-header-toggle
+        aria-expanded="false"
+        aria-label="{{ 'sections.header.menu' | t }}"
+      >
+        {%- if section.settings.logo != blank -%}
+          {{
+            section.settings.logo
+            | image_url: height: 120
+            | image_tag: alt: shop.name, loading: 'eager'
+          }}
+        {%- elsif section.settings.wordmark != blank -%}
+          {{ section.settings.wordmark | escape }}
+        {%- else -%}
+          {{ shop.name | escape }}
+        {%- endif -%}
+      </button>
+
+      <nav class="vv-header__nav vv-header__nav--right">
+        {%- for link in menu.links -%}
+          {%- if forloop.index > half -%}
+            <a
+              class="vv-header__link{% if link.active %} is-active{% endif %}"
+              href="{{ link.url }}"
+            >
+              {{- link.title | escape -}}
+            </a>
+          {%- endif -%}
+        {%- endfor -%}
+
+        {%- if section.settings.show_cart -%}
+          <a class="vv-header__link" href="{{ routes.cart_url }}">
+            {{ 'templates.cart.cart' | t }} ({{ cart.item_count }})
+          </a>
+        {%- endif -%}
+      </nav>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var root = document.querySelector('#shopify-section-{{ section.id }} [data-vv-header]');
+    if (!root) return;
+
+    var toggle = root.querySelector('[data-vv-header-toggle]');
+
+    function setOpen(open) {
+      root.dataset.open = open ? 'true' : 'false';
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    toggle.addEventListener('click', function () {
+      setOpen(root.dataset.open !== 'true');
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!root.contains(event.target)) setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') setOpen(false);
+    });
+
+    // Collapse once the visitor starts reading, the way the reference site does.
+    window.addEventListener(
+      'scroll',
+      function () {
+        if (root.dataset.open === 'true') setOpen(false);
+      },
+      { passive: true }
+    );
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "VV header",
+  "tag": "header",
+  "class": "vv-header-section",
+  "enabled_on": {
+    "groups": ["header"]
+  },
+  "settings": [
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Menu",
+      "default": "main-menu"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logo image"
+    },
+    {
+      "type": "text",
+      "id": "wordmark",
+      "label": "Wordmark",
+      "info": "Used when no logo image is set."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_cart",
+      "label": "Show cart link",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Notch shape"
+    },
+    {
+      "type": "range",
+      "id": "gutter",
+      "label": "Gutter height",
+      "min": 8,
+      "max": 40,
+      "step": 2,
+      "default": 16,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "fillet",
+      "label": "Concave blend",
+      "min": 4,
+      "max": 48,
+      "step": 2,
+      "default": 20,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "corner_radius",
+      "label": "Notch corner radius",
+      "min": 4,
+      "max": 48,
+      "step": 2,
+      "default": 20,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "width_collapsed",
+      "label": "Width when closed",
+      "min": 80,
+      "max": 320,
+      "step": 4,
+      "default": 132,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "width_expanded",
+      "label": "Width when open",
+      "min": 400,
+      "max": 1600,
+      "step": 20,
+      "default": 900,
+      "unit": "px"
+    },
+    {
+      "type": "header",
+      "content": "Type"
+    },
+    {
+      "type": "range",
+      "id": "logo_size",
+      "label": "Logo size",
+      "min": 12,
+      "max": 40,
+      "step": 1,
+      "default": 20,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "link_gap",
+      "label": "Space between links",
+      "min": 12,
+      "max": 64,
+      "step": 2,
+      "default": 34,
+      "unit": "px"
+    },
+    {
+      "type": "header",
+      "content": "Colour"
+    },
+    {
+      "type": "color",
+      "id": "shell_color",
+      "label": "Notch colour",
+      "default": "#0a0a0c"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text colour",
+      "default": "#ffffff"
+    }
+  ],
+  "presets": [
+    {
+      "name": "VV header"
+    }
+  ]
+}
+{% endschema %}

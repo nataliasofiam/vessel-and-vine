@@ -13,6 +13,7 @@
   "sections": {
     "announcement-bar": {
       "type": "announcement-bar",
+      "disabled": true,
       "blocks": {
         "announcement-bar-0": {
           "type": "announcement",
@@ -35,8 +36,26 @@
         "enable_language_selector": false
       }
     },
+    "vv-header": {
+      "type": "vv-header",
+      "settings": {
+        "menu": "main-menu",
+        "wordmark": "V&V",
+        "show_cart": true,
+        "gutter": 16,
+        "fillet": 20,
+        "corner_radius": 20,
+        "width_collapsed": 132,
+        "width_expanded": 900,
+        "logo_size": 20,
+        "link_gap": 34,
+        "shell_color": "#0a0a0c",
+        "text_color": "#ffffff"
+      }
+    },
     "header": {
       "type": "header",
+      "disabled": true,
       "settings": {
         "logo_position": "middle-left",
         "mobile_logo_position": "center",
@@ -57,6 +76,7 @@
   },
   "order": [
     "announcement-bar",
+    "vv-header",
     "header"
   ]
 }
