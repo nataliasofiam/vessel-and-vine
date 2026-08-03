@@ -54,6 +54,12 @@
     height: 100%;
   }
 
+  .vv-hero__panel--glass {
+  backdrop-filter: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05);
+  -webkit-backdrop-filter: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05);
+  background: rgba(255, 255, 255, {{ section.settings.glass_tint | divided_by: 1000.0 }});
+}
+
   .vv-hero__panel + .vv-hero__panel {
     border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity | divided_by: 100.0 }});
   }
@@ -467,7 +473,26 @@
       "max": 20,
       "step": 1,
       "default": 6
-    }
+    }, 
+    {
+  "type": "range",
+  "id": "glass_blur",
+  "label": "Glass blur",
+  "min": 0,
+  "max": 20,
+  "step": 1,
+  "default": 4,
+  "unit": "px"
+},
+{
+  "type": "range",
+  "id": "glass_tint",
+  "label": "Glass tint",
+  "min": 0,
+  "max": 100,
+  "step": 5,
+  "default": 30
+}
   ],
   "blocks": [
     {
