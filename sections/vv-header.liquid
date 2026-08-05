@@ -150,6 +150,22 @@
     opacity: 1;
   }
 
+  .vv-header__cart, .svg-wrapper {
+    width: 32px; 
+    height: 32px;
+  }
+
+  .vv-header__cart {
+    position: absolute; 
+    top: 0; 
+    right: var(--vv-gutter); 
+    height: var(--vv-notch-h); 
+    display: flex; 
+    align-items: center; 
+    color: var(--vv-fg); 
+    text-decoration: none; 
+  }
+
   /* ---- Open state -------------------------------------------------------- */
 
   .vv-header[data-open='true'] .vv-header__bar {
@@ -219,6 +235,22 @@
 
 <div class="vv-header" data-vv-header data-open="false">
   <div class="vv-header__bar">
+      <a href="{{ routes.cart_url }}" class="vv-header__cart" id="cart-icon-bubble">
+        {% if cart == empty %}
+          <span class="svg-wrapper">{{ 'icon-cart-empty.svg' | inline_asset_content }}</span>
+        {% else %}
+          <span class="svg-wrapper">{{ 'icon-cart.svg' | inline_asset_content }}</span>
+        {% endif %}
+        <span class="visually-hidden">{{ 'templates.cart.cart' | t }}</span>
+        {%- if cart != empty -%}
+          <div class="cart-count-bubble">
+            {%- if cart.item_count < 100 -%}
+              <span aria-hidden="true">{{ cart.item_count }}</span>
+            {%- endif -%}
+            <span class="visually-hidden">{{ 'sections.header.cart_count' | t: count: cart.item_count }}</span>
+          </div>
+        {%- endif -%}
+      </a>
     <div class="vv-header__inner">
       <nav class="vv-header__nav vv-header__nav--left">
         {%- for link in menu.links -%}
@@ -264,12 +296,6 @@
             </a>
           {%- endif -%}
         {%- endfor -%}
-
-        {%- if section.settings.show_cart -%}
-          <a class="vv-header__link" href="{{ routes.cart_url }}">
-            {{ 'templates.cart.cart' | t }} ({{ cart.item_count }})
-          </a>
-        {%- endif -%}
       </nav>
     </div>
   </div>
@@ -335,12 +361,6 @@
       "id": "wordmark",
       "label": "Wordmark",
       "info": "Used when no logo image is set."
-    },
-    {
-      "type": "checkbox",
-      "id": "show_cart",
-      "label": "Show cart link",
-      "default": true
     },
     {
       "type": "header",
