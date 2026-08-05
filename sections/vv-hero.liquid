@@ -137,7 +137,7 @@
     while (glassFlags.length < MAX_COLS) glassFlags.push(0);
 
     var strength = parseFloat(root.dataset.strength) || 0.03;
-    var radius = 5;
+    var radius = root.dataset.radius;
     var glassStrength = parseFloat(root.dataset.glassStrength) || 0.012;
     var ease = parseFloat(root.dataset.ease) || 0.06;
 
@@ -192,6 +192,7 @@
       '  float colWidth = 1.0 / u_cols;',
       '  float colIndex = floor(uv.x / colWidth);',
       '  float glass = glassAt(colIndex);',
+      '  float isOuter = max( 1.0 - step(0.5, colIndex), step(u_cols - 1.5, colIndex));',
       '  float localX = fract(uv.x / colWidth);',
       '',
       '  // Static refraction: strongest at the column edges, zero at centre.',
@@ -203,7 +204,7 @@
       '  d.x *= u_canvasAspect;',
       '  float dist = length(d);',
       '  float falloff = smoothstep(u_radius, 0.0, dist);',
-      '  float amp = u_strength * falloff * u_active * (1.0 + glass);',
+      '  float amp = u_strength * falloff * u_active * (1.0 + glass) * isOuter;',
       '  vec2 lens = normalize(d + vec2(1e-6)) * amp;',
       '  lens.x /= u_canvasAspect;',
       '',
