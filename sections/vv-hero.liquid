@@ -1,8 +1,15 @@
 {%- liquid
   assign img = section.settings.image
-  assign cols = section.blocks.size
-  if cols == 0
-    assign cols = 1
+  assign cols_desktop = section.settings.cols_desktop
+  assign cols_tablet = section.settings.cols_tablet
+  assign cols_mobile = section.settings.cols_mobile
+
+  assign cols_max = cols_desktop
+  if cols_tablet > cols_max
+    assign cols_max = cols_tablet
+  endif
+  if cols_mobile > cols_max
+    assign cols_max = cols_mobile
   endif
 -%}
 
