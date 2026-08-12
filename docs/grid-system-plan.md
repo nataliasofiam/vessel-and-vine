@@ -1,12 +1,15 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **This is finished — Parts 1 through 6 are all committed.** The
-hero panels line up with the product columns at every breakpoint, driven by
+Handoff notes. **Parts 1 through 6 are committed and the grid system works.**
+The hero panels line up with the product columns at every breakpoint, driven by
 three settings; glass and distortion share one definition of "outer"; the gutter
-is zeroed theme-wide and the heading sits on the grid's edge. The scaffolding
-(ruler, empty stubs) is deleted.
+is zeroed theme-wide. The scaffolding (ruler, empty stubs) is deleted.
 
-**One thing is knowingly incomplete:** the hairlines are still scoped to
+**Next is Part 7** — reshaping `featured-collection` into a full-width
+horizontal scroller with no heading, to match the reference. Note that 7a
+supersedes a Part 6 decision.
+
+**Knowingly incomplete:** the hairlines are still scoped to
 `featured-collection`, so collection and search pages have the zero gutter
 without the rules. See "Still open after Part 6". Read "Where we are" first.
 
@@ -457,6 +460,97 @@ horizontal padding either, so the two agree.
   and in two `<style>` blocks. The column counts are in `templates/index.json`
   now, but changing one section's media queries without the other still
   desynchronises them silently.
+
+---
+
+## Next: Part 7 — featured collection as a full-width scroller
+
+Three changes, decided 2026-08-12, moving `featured-collection` closer to the
+reference at <https://www.sotf.com/en>.
+
+> **The reference was not inspected while writing this.** `sotf.com` returns
+> HTTP 403 to automated fetches, so everything below is built from the stated
+> requirements and from what the code can support. Every visual judgement —
+> how much padding, whether the arrows stay, how the row ends — needs a human
+> eye on the reference. Do not treat the numbers here as measured.
+
+### 7a — remove the section heading
+
+Supersedes the Part 6 decision. Part 6 aligned the heading to the grid's outer
+edge by dropping `page-width`; the heading is now going away entirely, so that
+change is moot rather than wrong.
+
+Two levels, and the difference matters:
+
+- Blanking `title` in `templates/index.json` hides the `<h2>` — line 123 wraps
+  it in `{%- if section.settings.title != blank -%}`.
+- **But the wrapper `<div class="collection__title title-wrapper …">` on line
+  122 renders unconditionally**, outside that `if`. An empty wrapper still
+  carries `title-wrapper` margins, so the gap above the row stays. Removing the
+  heading properly means removing the wrapper, not just emptying the setting.
+
+Check before deleting the wrapper: it also carries
+`collection__title--desktop-slider` when a desktop slider is on. The slider
+*buttons* are safely elsewhere — `.slider-buttons` is inside
+`<slider-component>` at line 215, not in the title wrapper — but confirm what
+that modifier class does in `component-slider.css` before assuming the wrapper
+is inert.
+
+### 7b — full-width rows, scrollable left to right
+
+**Dawn already ships this; it is turned off.** In `templates/index.json`,
+`featured_collection` has `enable_desktop_slider: false` and
+`swipe_on_mobile: false`. Turning them on gives `.slider--desktop` —
+`overflow-x: auto`, `scroll-snap-type: x mandatory`, `scroll-behavior: smooth`
+(`component-slider.css:140`). The gate at line 103 needs
+`products_to_display > columns_desktop`; `products_to_show` is 8 against 4
+columns, so it passes.
+
+Two things that were tuned for a gutter and now resolve to zero, which is
+probably what you want but should be looked at:
+
+- `.slider--desktop:after` (line 152) adds a 5rem trailing pad offset by
+  `calc(-1 * var(--grid-desktop-horizontal-spacing))` — now `0px`.
+- `.slider--desktop .slider__slide:first-child` uses
+  `--desktop-margin-left-first-item` for the leading inset.
+
+**The hairlines will be wrong, and this is the real work in 7b.** The
+`box-shadow` rules use `:not(:nth-child(4n + 1))` — written for a *wrapping*
+grid, where every 4th item starts a new row and must not carry a left rule. A
+horizontal scroller is **one row of N items**, so `4n + 1` would strip the rule
+from items 5, 9, 13… in the middle of a continuous row. In a scroller the rule
+is wanted on every item except the first, which is `:not(:first-child)` — and
+the three per-breakpoint blocks collapse into one, since column count no longer
+determines where rows break. Decide whether the scroller replaces the wrapping
+grid at all breakpoints or only some; the answer determines whether those
+`nth-child` rules survive at all.
+
+### 7c — left padding on the item names
+
+**Do not put the padding on `.grid__item`.** That is the trap already recorded
+above: Dawn's items are content-box, so horizontal padding adds to the
+percentage width and wraps the row. `padding: 2rem 0` is vertical-only for
+exactly this reason.
+
+The padding belongs on an inner element, where it costs the layout nothing —
+`.card__information` or `.card__heading` in `snippets/card-product.liquid`
+(lines 112 and 151). Scope it to this section via the existing
+`#collection-{{ section.id }}` prefix unless the intent is theme-wide.
+
+Worth deciding at the same time: the hairline is drawn by `box-shadow` on the
+*item*, so padding an inner element moves the text away from the rule without
+moving the rule. If the image should stay flush to the hairline while only the
+text indents, target the text container alone. If everything should inset, the
+card wrapper is the place.
+
+### Checkpoint 7
+
+- No heading, and no empty gap where it was
+- One row, spanning the full viewport, scrolling horizontally without a
+  horizontal scrollbar on `<body>`
+- A hairline before every item except the first, continuous across the scroll
+- Product names clear of the hairlines by a deliberate amount
+- The hero above still lines up with whatever columns remain visible
 
 ---
 
