@@ -51,38 +51,6 @@
     },
     "vv_hero_MdexzK": {
       "type": "vv-hero",
-      "blocks": {
-        "panel_C4az3T": {
-          "type": "panel",
-          "settings": {
-            "glass": true
-          }
-        },
-        "panel_kHqYXc": {
-          "type": "panel",
-          "settings": {
-            "glass": false
-          }
-        },
-        "panel_kL6HaK": {
-          "type": "panel",
-          "settings": {
-            "glass": false
-          }
-        },
-        "panel_Hqfc6b": {
-          "type": "panel",
-          "settings": {
-            "glass": true
-          }
-        }
-      },
-      "block_order": [
-        "panel_C4az3T",
-        "panel_kHqYXc",
-        "panel_kL6HaK",
-        "panel_Hqfc6b"
-      ],
       "name": "Hero",
       "settings": {
         "image": "shopify://shop_images/vv-hero.png",
@@ -96,7 +64,10 @@
         "glass_strength": 28,
         "ease": 10,
         "glass_blur": 4,
-        "glass_tint": 30
+        "glass_tint": 30, 
+        "cols_mobile": 2, 
+        "cols_tablet": 3, 
+        "cols_desktop": 4
       }
     },
     "featured_collection": {

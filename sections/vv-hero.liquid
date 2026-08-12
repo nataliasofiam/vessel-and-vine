@@ -14,131 +14,132 @@
 -%}
 
 <style>
-  .vv-hero {
-    position: relative;
-    width: 100%;
-    height: {{ section.settings.hero_height }}vh;
-    background: {{ section.settings.fallback_color }};
-    --vv-glass: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05); 
-    --vv-glass-bg: rgba(255,255,255, {{ section.settings.glass_tint | divided_by: 1000.0 }}); 
-  }
-
-  .vv-hero__media,
-  .vv-hero__canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-
-  .vv-hero__media {
-    object-fit: cover;
-    object-position: {{ section.settings.focal }};
-  }
-
-  .vv-hero__canvas {
-    opacity: 0;
-    transition: opacity 600ms ease;
-    pointer-events: none;
-  }
-
-  .vv-hero__canvas.is-ready {
-    opacity: 1;
-  }
-
-  .vv-hero__panels {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: grid;
-    pointer-events: none;
-  }
-
-  .vv-hero__panel {
-    height: 100%;
-  }
-
-  .vv-hero__panel + .vv-hero__panel {
-    border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity | divided_by: 100.0 }});
-  }
-
-  {% comment %} Mobile rules {%  endcomment %}
-  @media screen and (max-width: 749px) {
     .vv-hero {
-      height: {{ section.settings.hero_height_mobile }}vh;
+      position: relative;
+      width: 100%;
+      height: {{ section.settings.hero_height }}vh;
+      background: {{ section.settings.fallback_color }};
+      --vv-glass: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05);
+      --vv-glass-bg: rgba(255,255,255, {{ section.settings.glass_tint | divided_by: 1000.0 }});
     }
 
-    {% comment %} Set the columns {%  endcomment %}
+    .vv-hero__media,
+    .vv-hero__canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .vv-hero__media {
+      object-fit: cover;
+      object-position: {{ section.settings.focal }};
+    }
+
+    .vv-hero__canvas {
+      opacity: 0;
+      transition: opacity 600ms ease;
+      pointer-events: none;
+    }
+
+    .vv-hero__canvas.is-ready {
+      opacity: 1;
+    }
+
     .vv-hero__panels {
-      grid-template-columns: repeat({{  cols_mobile }}, 1fr);
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      pointer-events: none;
     }
 
-    {% comment %} Hide the surplus columns {%  endcomment %}
-    .vv-hero__panel:nth-child(n + {{  cols_mobile | plus: 1 }}){
-      display: none; 
+    .vv-hero__panel {
+      height: 100%;
     }
 
-    {% comment %} Apply glass effect {%  endcomment %}
-    .vv-hero__panel:nth-child({{  cols_mobile }}) {
-      backdrop-filter: var(--vv-glass); 
-      -webkit-backdrop-filter: var(--vv-glass); 
-      background: var(--vv-glass-bg); 
-    } 
+    .vv-hero__panel + .vv-hero__panel {
+      border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity | divided_by: 100.0 }});
+    }
+
+    {% comment %} Mobile rules {%  endcomment %}
+    @media screen and (max-width: 749px) {
+      .vv-hero {
+        height: {{ section.settings.hero_height_mobile }}vh;
+      }
+
+      {% comment %} Set the columns {%  endcomment %}
+      .vv-hero__panels {
+        grid-template-columns: repeat({{  cols_mobile }}, 1fr);
+      }
+
+      {% comment %} Hide the surplus columns {%  endcomment %}
+      .vv-hero__panel:nth-child(n + {{  cols_mobile | plus: 1 }}){
+        display: none;
+      }
+
+      {% comment %} Apply glass effect {%  endcomment %}
+      .vv-hero__panel:nth-child({{  cols_mobile }}) {
+        backdrop-filter: var(--vv-glass);
+        -webkit-backdrop-filter: var(--vv-glass);
+        background: var(--vv-glass-bg);
+      }
+    }
+
+    {% comment %} Tablet rules {%  endcomment %}
+    @media screen and (min-width: 750px) and (max-width: 989px) {
+
+      {% comment %} Set the columns {%  endcomment %}
+      .vv-hero__panels {
+        grid-template-columns: repeat({{  cols_tablet}}, 1fr);
+      }
+
+      {% comment %} Hide the surplus columns {%  endcomment %}
+      .vv-hero__panel:nth-child(n + {{  cols_tablet| plus: 1 }}){
+        display: none;
+      }
+
+      {% comment %} Apply glass effect {%  endcomment %}
+      .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_tablet }}) {
+        backdrop-filter: var(--vv-glass);
+        -webkit-backdrop-filter: var(--vv-glass);
+        background: var(--vv-glass-bg);
+    }
   }
 
-  {% comment %} Tablet rules {%  endcomment %}
-  @media screen and (min-width: 750px) and (max-width: 989px) {
- 
-    {% comment %} Set the columns {%  endcomment %}
-    .vv-hero__panels {
-      grid-template-columns: repeat({{  cols_tablet}}, 1fr);
-    }
+    {% comment %} Desktop rules {%  endcomment %}
+    @media screen and (min-width: 990px) {
 
-    {% comment %} Hide the surplus columns {%  endcomment %}
-    .vv-hero__panel:nth-child(n + {{  cols_tablet| plus: 1 }}){
-      display: none; 
-    }
+      {% comment %} Set the columns {%  endcomment %}
+      .vv-hero__panels {
+        grid-template-columns: repeat({{  cols_desktop}}, 1fr);
+      }
 
-    {% comment %} Apply glass effect {%  endcomment %}
-    .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_tablet }}) {
-      backdrop-filter: var(--vv-glass); 
-      -webkit-backdrop-filter: var(--vv-glass); 
-      background: var(--vv-glass-bg);
-  }
-}
+      {% comment %} Hide the surplus columns {%  endcomment %}
+      .vv-hero__panel:nth-child(n + {{  cols_desktop| plus: 1 }}){
+        display: none;
+      }
 
-  {% comment %} Desktop rules {%  endcomment %}
-  @media screen and (min-width: 990px) {
- 
-    {% comment %} Set the columns {%  endcomment %}
-    .vv-hero__panels {
-      grid-template-columns: repeat({{  cols_desktop}}, 1fr);
+      {% comment %} Apply glass effect {%  endcomment %}
+      .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_desktop }}) {
+        backdrop-filter: var(--vv-glass);
+        -webkit-backdrop-filter: var(--vv-glass);
+        background: var(--vv-glass-bg);
+      }
     }
-
-    {% comment %} Hide the surplus columns {%  endcomment %}
-    .vv-hero__panel:nth-child(n + {{  cols_desktop| plus: 1 }}){
-      display: none; 
-    }
-
-    {% comment %} Apply glass effect {%  endcomment %}
-    .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_desktop }}) {
-      backdrop-filter: var(--vv-glass); 
-      -webkit-backdrop-filter: var(--vv-glass); 
-      background: var(--vv-glass-bg);
-    }
-  }
 </style>
 
 <div
   class="vv-hero"
   id="vv-hero-{{ section.id }}"
   data-vv-hero
-  data-cols="{{ cols }}"
-  data-glass="{% for block in section.blocks %}{% if block.settings.glass %}1{% else %}0{% endif %}{% unless forloop.last %},{% endunless %}{% endfor %}"
+  data-cols="{{ cols_desktop }}"
+  data-cols-tablet="{{ cols_tablet }}"
+  data-cols-mobile="{{ cols_mobile }}"
   data-strength="{{ section.settings.mouse_strength | divided_by: 1000.0 }}"
   data-radius="{{ section.settings.mouse_radius | divided_by: 100.0 }}"
   data-glass-strength="{{ section.settings.glass_strength | divided_by: 1000.0 }}"
@@ -161,11 +162,8 @@
   {%- endif -%}
 
   <div class="vv-hero__panels">
-    {%- for block in section.blocks -%}
-      <div
-        class="vv-hero__panel{% if block.settings.glass %} vv-hero__panel--glass{% endif %}"
-        {{ block.shopify_attributes }}
-      >&nbsp;</div>
+    {%- for i in (1..cols_max) -%}
+      <div class="vv-hero__panel">&nbsp;</div>
     {%- endfor -%}
   </div>
 </div>
@@ -194,7 +192,9 @@
     var cols = Math.min(parseInt(root.dataset.cols, 10) || 1, MAX_COLS);
     var glassFlags = (root.dataset.glass || '')
       .split(',')
-      .map(function (v) { return parseFloat(v) || 0; })
+      .map(function (v) {
+        return parseFloat(v) || 0;
+      })
       .slice(0, MAX_COLS);
     while (glassFlags.length < MAX_COLS) glassFlags.push(0);
 
@@ -209,7 +209,7 @@
       'void main() {',
       '  v_uv = a_position * 0.5 + 0.5;',
       '  gl_Position = vec4(a_position, 0.0, 1.0);',
-      '}'
+      '}',
     ].join('\n');
 
     var fragSrc = [
@@ -274,7 +274,7 @@
       '  sampleUv = clamp(sampleUv, 0.001, 0.999);',
       '',
       '  gl_FragColor = texture2D(u_image, sampleUv);',
-      '}'
+      '}',
     ].join('\n');
 
     function compile(type, src) {
@@ -305,10 +305,7 @@
     // One full-screen quad. All the work happens per fragment.
     var buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-      -1, -1,  1, -1,  -1, 1,
-      -1,  1,  1, -1,   1, 1
-    ]), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
     var aPosition = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(aPosition);
@@ -413,7 +410,9 @@
     // which may already be cached without CORS headers.
     var texImg = new Image();
     texImg.crossOrigin = 'anonymous';
-    texImg.onload = function () { loadTexture(texImg); };
+    texImg.onload = function () {
+      loadTexture(texImg);
+    };
     texImg.onerror = function () {
       console.warn('[vv-hero] texture failed to load; leaving static image in place.');
     };
@@ -423,15 +422,18 @@
 
     // Pause when the hero is off screen.
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            if (canvas.classList.contains('is-ready')) start();
-          } else {
-            stop();
-          }
-        });
-      }, { threshold: 0 }).observe(root);
+      new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              if (canvas.classList.contains('is-ready')) start();
+            } else {
+              stop();
+            }
+          });
+        },
+        { threshold: 0 },
+      ).observe(root);
     }
 
     document.addEventListener('shopify:section:unload', function (e) {
@@ -493,38 +495,38 @@
       "min": 0,
       "max": 100,
       "step": 5,
-      "default": 35, 
+      "default": 35,
       "unit": "%"
     },
     {
-      "type": "header", 
+      "type": "header",
       "content": "Columns"
     },
     {
-      "type": "range", 
-      "id": "cols_desktop", 
-      "label": "Columns (desktop)", 
-      "min": 1, 
-      "max": 8, 
-      "step": 1, 
+      "type": "range",
+      "id": "cols_desktop",
+      "label": "Columns (desktop)",
+      "min": 1,
+      "max": 8,
+      "step": 1,
       "default": 4
     },
     {
-      "type": "range", 
-      "id": "cols_tablet", 
-      "label": "Columns (tablet)", 
-      "min": 1, 
-      "max": 8, 
-      "step": 1, 
+      "type": "range",
+      "id": "cols_tablet",
+      "label": "Columns (tablet)",
+      "min": 1,
+      "max": 8,
+      "step": 1,
       "default": 3
     },
     {
-      "type": "range", 
-      "id": "cols_mobile", 
-      "label": "Columns (mobile)", 
-      "min": 1, 
-      "max": 8, 
-      "step": 1, 
+      "type": "range",
+      "id": "cols_mobile",
+      "label": "Columns (mobile)",
+      "min": 1,
+      "max": 8,
+      "step": 1,
       "default": 2
     },
     {
@@ -547,7 +549,7 @@
       "min": 5,
       "max": 80,
       "step": 5,
-      "default": 35, 
+      "default": 35,
       "unit": "%"
     },
     {
@@ -567,50 +569,31 @@
       "max": 20,
       "step": 1,
       "default": 6
-    }, 
+    },
     {
-  "type": "range",
-  "id": "glass_blur",
-  "label": "Glass blur",
-  "min": 0,
-  "max": 20,
-  "step": 1,
-  "default": 4,
-  "unit": "px"
-},
-{
-  "type": "range",
-  "id": "glass_tint",
-  "label": "Glass tint",
-  "min": 0,
-  "max": 100,
-  "step": 5,
-  "default": 30
-}
-  ],
-  "blocks": [
+      "type": "range",
+      "id": "glass_blur",
+      "label": "Glass blur",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "default": 4,
+      "unit": "px"
+    },
     {
-      "type": "panel",
-      "name": "Panel",
-      "settings": [
-        {
-          "type": "checkbox",
-          "id": "glass",
-          "label": "Glass effect",
-          "default": false
-        }
-      ]
+      "type": "range",
+      "id": "glass_tint",
+      "label": "Glass tint",
+      "min": 0,
+      "max": 100,
+      "step": 5,
+      "default": 30
     }
   ],
+  "blocks": [],
   "presets": [
     {
-      "name": "Hero",
-      "blocks": [
-        { "type": "panel", "settings": { "glass": true } },
-        { "type": "panel" },
-        { "type": "panel" },
-        { "type": "panel", "settings": { "glass": true } }
-      ]
+      "name": "Hero"
     }
   ]
 }
