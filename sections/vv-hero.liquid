@@ -188,14 +188,6 @@
     if (!gl) return;
 
     var MAX_COLS = 8;
-    var glassFlags = (root.dataset.glass || '')
-      .split(',')
-      .map(function (v) {
-        return parseFloat(v) || 0;
-      })
-      .slice(0, MAX_COLS);
-    while (glassFlags.length < MAX_COLS) glassFlags.push(0);
-
     var strength = parseFloat(root.dataset.strength) || 0.03;
     var radius = root.dataset.radius;
     var glassStrength = parseFloat(root.dataset.glassStrength) || 0.012;
@@ -221,19 +213,9 @@
       'uniform float u_radius;',
       'uniform float u_glassStrength;',
       'uniform float u_cols;',
-      'uniform float u_glass[' + MAX_COLS + '];',
       'uniform float u_active;',
       '',
       'varying vec2 v_uv;',
-      '',
-      'float glassAt(float idx) {',
-      '  float g = 0.0;',
-      '  for (int i = 0; i < ' + MAX_COLS + '; i++) {',
-      '    if (float(i) == idx) g = u_glass[i];',
-      '  }',
-      '  return g;',
-      '}',
-      '',
       '// Replicate object-fit: cover inside the shader.',
       'vec2 coverUv(vec2 uv) {',
       '  vec2 scale = vec2(1.0);',
@@ -251,7 +233,6 @@
       '  // Which column is this fragment in, and where inside it.',
       '  float colWidth = 1.0 / u_cols;',
       '  float colIndex = floor(uv.x / colWidth);',
-      '  float glass = glassAt(colIndex);',
       '  float isFirst = (1.0 - step(0.5, colIndex)) * step(2.5, u_cols);',
       '  float isLast = step(u_cols - 1.5, colIndex);', 
       '  float isOuter = max(isFirst, isLast);', 
@@ -319,7 +300,6 @@
     var uRadius = gl.getUniformLocation(program, 'u_radius');
     var uGlassStrength = gl.getUniformLocation(program, 'u_glassStrength');
     var uCols = gl.getUniformLocation(program, 'u_cols');
-    var uGlass = gl.getUniformLocation(program, 'u_glass');
     var uActive = gl.getUniformLocation(program, 'u_active');
 
     var desktopMatch = window.matchMedia('(min-width:990px)'); 
@@ -344,7 +324,6 @@
     gl.uniform1f(uRadius, radius);
     gl.uniform1f(uGlassStrength, glassStrength);
     applyCols(); 
-    gl.uniform1fv(uGlass, new Float32Array(glassFlags));
 
     desktopMatch.addEventListener('change', applyCols); 
     tabletMatch.addEventListener('change', applyCols); 
