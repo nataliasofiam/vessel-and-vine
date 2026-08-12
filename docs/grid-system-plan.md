@@ -449,13 +449,10 @@ horizontal padding either, so the two agree.
 ### Still open after Part 6
 
 - **The hairlines are still scoped to `featured-collection`.** Collection and
-  search pages now have a zero gutter with *no* rules between cells, which is
-  the one place the theme does not yet look like the reference. Making the grid
-  read as global end-to-end means lifting the `box-shadow` rules and
-  `--vv-rule-color` out of this section into somewhere shared. That is a real
-  change, not a move: the `:not(:nth-child(Nn + 1))` selectors are written
-  against this section's 4/3/2, and collection pages have their own column
-  settings.
+  search pages now have a zero gutter with *no* rules between cells. **Part 7c
+  supersedes this** — the reference draws its lines as one fixed page-wide
+  overlay rather than per-item borders, which is global by construction. Do not
+  solve this by lifting the `box-shadow` rules somewhere shared; read 7c first.
 - **The breakpoints are still unrecorded.** 990 and 750 live only in this doc
   and in two `<style>` blocks. The column counts are in `templates/index.json`
   now, but changing one section's media queries without the other still
@@ -465,92 +462,152 @@ horizontal padding either, so the two agree.
 
 ## Next: Part 7 — featured collection as a full-width scroller
 
-Three changes, decided 2026-08-12, moving `featured-collection` closer to the
+Three changes requested 2026-08-12, moving `featured-collection` toward the
 reference at <https://www.sotf.com/en>.
 
-> **The reference was not inspected while writing this.** `sotf.com` returns
-> HTTP 403 to automated fetches, so everything below is built from the stated
-> requirements and from what the code can support. Every visual judgement —
-> how much padding, whether the arrows stay, how the row ends — needs a human
-> eye on the reference. Do not treat the numbers here as measured.
+> **Sourcing.** `sotf.com` returns HTTP 403 to automated fetches, so the live
+> site could not be read. This section is written from a saved copy of the
+> homepage (`~/Downloads/SOTF _ Official online shop.html`, 12 Aug). **Only the
+> HTML was saved** — the stylesheets are remote and still blocked. So markup
+> structure and JavaScript config below are firsthand and quotable; every
+> dimension, colour and spacing value is *not*, and needs a human eye.
 
-### 7a — remove the section heading
+### What the reference actually does
 
-Supersedes the Part 6 decision. Part 6 aligned the heading to the grid's outer
-edge by dropping `page-width`; the heading is now going away entirely, so that
-change is moot rather than wrong.
+**1. The hairlines are one fixed page-wide overlay, not per-item borders.**
+First thing inside `.main-wrapper`, before the header:
 
-Two levels, and the difference matters:
+```html
+<div class="row g-0 overlay_grid_wrapper">
+  <div class="d-none d-tablet-block col col-xl-2 overlay_grid_border"></div>
+  <div class="col overlay_grid_border"></div>
+  <div class="col overlay_grid_border"></div>
+  <div class="d-none d-tablet-block col overlay_grid_border"></div>
+</div>
+```
 
-- Blanking `title` in `templates/index.json` hides the `<h2>` — line 123 wraps
-  it in `{%- if section.settings.title != blank -%}`.
-- **But the wrapper `<div class="collection__title title-wrapper …">` on line
-  122 renders unconditionally**, outside that `if`. An empty wrapper still
-  carries `title-wrapper` margins, so the gap above the row stays. Removing the
-  heading properly means removing the wrapper, not just emptying the setting.
+Four empty divs, drawn once, with the page rendered over them. `d-none
+d-tablet-block` on the first and last means **4 columns at tablet and up, 2
+below** — and `col-xl-2` makes the first column narrower at xl, so the grid is
+deliberately *not* equal-width at the largest size.
 
-Check before deleting the wrapper: it also carries
-`collection__title--desktop-slider` when a desktop slider is on. The slider
-*buttons* are safely elsewhere — `.slider-buttons` is inside
-`<slider-component>` at line 215, not in the title wrapper — but confirm what
-that modifier class does in `component-slider.css` before assuming the wrapper
-is inert.
+This is the `vv-grid-ruler` technique made permanent rather than kept as a
+debug tool. **It also answers the "hairlines are still scoped to
+featured-collection" question left open after Part 6**: an overlay is global by
+construction — no per-section CSS, no `nth-child` arithmetic, no per-breakpoint
+rule sets, and it cannot desynchronise from the sections because nothing in the
+sections draws it. The deleted snippet is in git at `3cce708b^` and is the
+obvious starting point.
 
-### 7b — full-width rows, scrollable left to right
+**2. There is a heading, and it sits on the grid.** `home_collection_info` is a
+row built from the same column structure as the overlay: an empty spacer cell,
+the title, another empty cell, then a "View all" link. The title therefore lands
+in column 2 and the action in column 4, both flush to overlay lines.
 
-**Dawn already ships this; it is turned off.** In `templates/index.json`,
-`featured_collection` has `enable_desktop_slider: false` and
-`swipe_on_mobile: false`. Turning them on gives `.slider--desktop` —
-`overflow-x: auto`, `scroll-snap-type: x mandatory`, `scroll-behavior: smooth`
-(`component-slider.css:140`). The gate at line 103 needs
-`products_to_display > columns_desktop`; `products_to_show` is 8 against 4
-columns, so it passes.
+**This contradicts "the header is unnecessary."** The reference has one — it
+just doesn't look like Dawn's centred `title-wrapper`, it looks like two cells
+of the grid. Worth deciding deliberately rather than by default.
 
-Two things that were tuned for a gutter and now resolve to zero, which is
-probably what you want but should be looked at:
+**3. The carousel is Slick.** Config, verbatim from the page:
 
-- `.slider--desktop:after` (line 152) adds a 5rem trailing pad offset by
-  `calc(-1 * var(--grid-desktop-horizontal-spacing))` — now `0px`.
-- `.slider--desktop .slider__slide:first-child` uses
-  `--desktop-margin-left-first-item` for the leading inset.
+```js
+{ dots: false, infinite: true, speed: 500, arrows: true,
+  slidesToShow: 3, slidesToScroll: 1, swipeToSlide: true,
+  responsive: [ { breakpoint: 1199.98, settings: { slidesToShow: 4, slidesToScroll: 1 } },
+                { breakpoint: 1024.98, settings: { slidesToShow: 2, slidesToScroll: 1 } } ] }
+```
 
-**The hairlines will be wrong, and this is the real work in 7b.** The
-`box-shadow` rules use `:not(:nth-child(4n + 1))` — written for a *wrapping*
-grid, where every 4th item starts a new row and must not carry a left rule. A
-horizontal scroller is **one row of N items**, so `4n + 1` would strip the rule
-from items 5, 9, 13… in the middle of a continuous row. In a scroller the rule
-is wanted on every item except the first, which is `:not(:first-child)` — and
-the three per-breakpoint blocks collapse into one, since column count no longer
-determines where rows break. Decide whether the scroller replaces the wrapping
-grid at all breakpoints or only some; the answer determines whether those
-`nth-child` rules survive at all.
+Slick `breakpoint` values are **max-widths**, so this reads: above 1199.98 show
+**3**, at or below 1199.98 show **4**, at or below 1024.98 show **2**. Note the
+inversion — the *widest* viewport shows the *fewest*, largest items. That is a
+deliberate choice and it is not what our 4/3/2 does.
 
-### 7c — left padding on the item names
+**4. Item structure — image and text are siblings.**
 
-**Do not put the padding on `.grid__item`.** That is the trap already recorded
-above: Dawn's items are content-box, so horizontal padding adds to the
-percentage width and wraps the row. `padding: 2rem 0` is vertical-only for
-exactly this reason.
+```
+.home_collection_item
+  .home_collection_item_img       <a><picture>
+  .home_collection_item_info
+    .home_collection_item_info_title
+      .home_collection_item_info_brand
+      .home_collection_item_info_article_title
+    .home_collection_item_info_price
+```
 
-The padding belongs on an inner element, where it costs the layout nothing —
-`.card__information` or `.card__heading` in `snippets/card-product.liquid`
-(lines 112 and 151). Scope it to this section via the existing
-`#collection-{{ section.id }}` prefix unless the intent is theme-wide.
+The image sits directly in the item; the text lives in its own wrapper
+alongside it. So the image can stay flush to the column edge while only the
+text block is inset — which is what "names shouldn't touch the hairlines"
+asks for.
 
-Worth deciding at the same time: the hairline is drawn by `box-shadow` on the
-*item*, so padding an inner element moves the text away from the rule without
-moving the rule. If the image should stay flush to the hairline while only the
-text indents, target the text container alone. If everything should inset, the
-card wrapper is the place.
+### The work
+
+**7a — the heading. Decide before typing anything else.** Two readings, and
+they lead to different work:
+
+- *Remove it*, as requested. Note that blanking `title` in
+  `templates/index.json` only hides the `<h2>` — line 123 wraps that in
+  `{%- if section.settings.title != blank -%}`, but the wrapper `<div
+  class="collection__title title-wrapper …">` on line 122 renders
+  unconditionally and keeps its margins. The wrapper has to go too.
+- *Rebuild it on the grid*, as the reference does — title in one cell, "View
+  all" in another, both aligned to the hairlines. Dawn already has the second
+  half of this: `show_view_all` renders a `collection__view-all` block at line
+  248.
+
+Supersedes the Part 6 decision either way: aligning the heading to the grid's
+outer edge by dropping `page-width` is moot if it is removed, and insufficient
+if it is rebuilt.
+
+**7b — the scroller. Dawn already ships it, switched off.**
+`enable_desktop_slider` and `swipe_on_mobile` are both `false` in
+`templates/index.json`. Turning them on gives `.slider--desktop` with
+`overflow-x: auto`, `scroll-snap-type: x mandatory` and `scroll-behavior:
+smooth` (`component-slider.css:140`). The gate at line 103 needs
+`products_to_display > columns_desktop` — 8 against 4, so it passes.
+
+Two gaps against the reference to decide on, not to assume:
+
+- **`infinite: true`.** Dawn's slider is a finite scroll-snap track; it does not
+  wrap around. Matching that behaviour is a real piece of work, not a setting.
+- **`arrows: true` plus a counter.** Dawn renders `.slider-buttons` with prev,
+  next and an `n / total` counter at line 215. The reference has arrows but no
+  dots. Close, but style it deliberately.
+
+Also note the two rules tuned for a gutter that now resolve to zero:
+`.slider--desktop:after` (line 152) offsets a 5rem trailing pad by
+`calc(-1 * var(--grid-desktop-horizontal-spacing))`, and `:first-child` uses
+`--desktop-margin-left-first-item` for the leading inset.
+
+**7c — hairlines become an overlay.** This supersedes the per-item `box-shadow`
+approach from Parts 2–3, and it is what makes 7b safe. The current rules use
+`:not(:nth-child(4n + 1))`, written for a *wrapping* grid where every 4th item
+begins a new row. A horizontal scroller is one continuous row of N, so `4n + 1`
+would strip the rule from items 5, 9, 13 mid-row. Rather than rewrite those
+selectors to `:not(:first-child)`, drawing the lines as a fixed overlay removes
+the coupling between the rules and the column count altogether — which is the
+reference's whole reason for doing it that way.
+
+Consequence to check: an overlay sits behind everything, so it will show
+through any section that does not paint its own background, not just this one.
+That is the intent, but look at the hero and the footer before committing.
+
+**7d — indent the item names.** Not on `.grid__item`: Dawn's items are
+content-box, so horizontal padding adds to the percentage width and wraps the
+row. That is why the existing padding is `2rem 0`, vertical-only, and it is
+already recorded as a lesson above.
+
+Put it on the text wrapper instead — `.card__information` in
+`snippets/card-product.liquid` (line 112 / 149) is the structural equivalent of
+the reference's `.home_collection_item_info`. That leaves the image flush to the
+column edge while the text clears the line, which is what the reference does.
 
 ### Checkpoint 7
 
-- No heading, and no empty gap where it was
-- One row, spanning the full viewport, scrolling horizontally without a
-  horizontal scrollbar on `<body>`
-- A hairline before every item except the first, continuous across the scroll
-- Product names clear of the hairlines by a deliberate amount
-- The hero above still lines up with whatever columns remain visible
+- Hairlines continuous down the whole page, not just beside the product grid
+- One product row, full width, scrolling horizontally, no scrollbar on `<body>`
+- Whatever was decided in 7a, aligned to the same lines as everything else
+- Product names clear of the hairlines; images still flush
+- The hero still lines up with the overlay columns
 
 ---
 
