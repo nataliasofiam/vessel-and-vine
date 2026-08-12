@@ -1,9 +1,17 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **Parts 1–4a are done, committed, and pushed.** The hero is now
-driven entirely by three column settings, with no panel blocks anywhere. Next is
-Part 4b, the shader diet, which has one decision to make before any code gets
-typed — see that section. Read "Where we are" before touching anything.
+Handoff notes. **Parts 1–4a and Part 5 are done, committed, and pushed.** The
+hero is driven entirely by three column settings, and the shader now follows the
+breakpoint. Next is **Part 4b**, the shader diet — its open question is settled,
+so it can be typed straight through. Read "Where we are" before touching
+anything.
+
+**Part 5 was moved ahead of Part 4b**, against the original order. Two reasons,
+both worth keeping: Part 5 fixed a visible defect while 4b is a cleanup with
+almost no visible effect, and 4b's open question was about `isOuter` at
+`u_cols` = 2 — a state the shader could never reach until Part 5 let `u_cols`
+change at all. Doing 5 first turned an abstract decision into something
+observable.
 
 ## How I want to work on this
 
@@ -42,9 +50,12 @@ Branch `consistent-grid`. Commits so far:
 | `5a4b1afd` | fix missing schema for column breakpoints — Part 4a **Stage A** |
 | `c9a5673b` | hero panel columns per breakpoint — Part 4a **Stage B** |
 | `d1cbeb80` | hero breakpoint driven by settings, not blocks — Part 4a **Stage C** |
+| `b026c793` | record Part 4a complete in grid doc |
+| `8df0beb5` | shader column count follows the breakpoint — **Part 5** |
+| `a50db993` | stop overscroll exposing white above the hero — header, not grid |
 
 Working tree clean, pushed to `origin/consistent-grid`. Nothing is broken.
-Part 4a is complete.
+Parts 4a and 5 are complete.
 
 ### Done — Part 1, column ruler
 
@@ -155,10 +166,36 @@ that comes back.
    queries are siblings at depth 0 and the braces balance. Prettier will not fix
    this; see "Things learned the hard way".
 
+### Done — Part 5, `u_cols` follows the breakpoint
+
+Committed as `8df0beb5`.
+
+`u_cols` was uploaded once at init from `data-cols`, and **that attribute is
+rendered by Liquid on the server** — it cannot know the viewport, so it always
+reported `cols_desktop`. The shader divided the hero into quarters at every
+width: below 990 the refraction seams sat where no divider was, and the mouse
+lens was confined to the wrong regions. This is the clean statement of the
+whole part: CSS responds to the viewport, Liquid cannot. The three
+`data-cols-*` attributes exist so the server can hand the browser every value
+and let client-side code choose.
+
+- `colsForViewport()` (line 326) picks from the three attributes via two hoisted
+  `MediaQueryList` objects. Widest test first — 1200px matches both `min-width`
+  queries, so early return is what makes them exclusive.
+- `applyCols()` (line 336) uploads it, clamped to `MAX_COLS`.
+- Called once at init (line 344), then from a `change` listener on each query
+  (lines 347–348). `matchMedia` rather than the existing `resize` handler:
+  `resize` fires continuously through a drag, these fire only when a boundary is
+  actually crossed. No redraw needed — the rAF loop draws every frame, so a
+  changed uniform lands on the next one.
+- `data-cols` renamed `data-cols-desktop`; the `cols` variable it fed is gone,
+  dead once `applyCols` took over the init upload.
+- The empty `"blocks": []` left over from Stage C is deleted.
+
+
 ### Current line numbers in `sections/vv-hero.liquid`
 
-As of `d1cbeb80`, after Prettier. Everything below `<style>` moved when the JS
-was reformatted, so these are the numbers Part 4b needs.
+As of `8df0beb5`. These are the numbers Part 4b needs.
 
 | Line | What |
 | --- | --- |
@@ -167,18 +204,19 @@ was reformatted, so these are the numbers Part 4b needs.
 | 65 | `.vv-hero__panel + .vv-hero__panel` — 1px divider |
 | 70 / 94 / 115 | the three media blocks — mobile / tablet / desktop |
 | 134 | `</style>` |
-| 140–142 | `data-cols`, `data-cols-tablet`, `data-cols-mobile` |
+| 140–142 | `data-cols-desktop`, `data-cols-tablet`, `data-cols-mobile` |
 | 165 | panel loop — `{%- for i in (1..cols_max) -%}` |
-| 190 | `MAX_COLS = 8` — keep, still clamps `cols` |
-| 193–199 | `glassFlags` parsing — 4b deletes |
-| 226 | `u_glass` uniform declaration — 4b deletes |
-| 231–237 | `glassAt()` — 4b deletes |
-| 256 / 257 | `float glass` / `float isOuter` |
-| 262 / 269 | `staticOffset` / `amp` — 4b rewires both to `isOuter` |
-| 322 / 330 | `uGlass` lookup / `uniform1fv` upload — 4b deletes |
-| 329 | `gl.uniform1f(uCols, cols)` — Part 5 replaces |
-| 503 | `"Columns"` schema header + the three `cols_*` ranges |
-| 593 | `"blocks": []` — the leftover above |
+| 190 | `MAX_COLS = 8` — keep, `applyCols` clamps against it |
+| 191–197 | `glassFlags` parsing — 4b deletes |
+| 224 | `u_glass` uniform declaration — 4b deletes |
+| 229–235 | `glassAt()` — 4b deletes |
+| 254 / 255 | `float glass` / `float isOuter` — 4b deletes the first, redefines the second |
+| 260 / 267 | `staticOffset` / `amp` — 4b rewires both to `isOuter` |
+| 320 / 345 | `uGlass` lookup / `uniform1fv` upload — 4b deletes |
+| 324–325 | the two hoisted `MediaQueryList` objects |
+| 326 / 336 | `colsForViewport()` / `applyCols()` |
+| 347–348 | the two `change` listeners |
+| 521 | `"Columns"` schema header + the three `cols_*` ranges |
 
 ---
 
@@ -272,6 +310,29 @@ was reformatted, so these are the numbers Part 4b needs.
   corrected for you, in the one file where "check the brace depth" is already a
   rule. Verify nesting by counting braces, not by reading the indentation.
   Correctly nested and correctly indented are different properties here.
+- **The half-done rename actually happened.** The warning above was written
+  before it fired, and it fired anyway during Part 5: `data-cols` was renamed in
+  the markup but `root.dataset.cols` was left in `colsForViewport`, so desktop
+  silently fell to one column — no console error, nothing visibly broken until
+  you looked at the right breakpoint. Knowing the trap is not the same as
+  running the grep. Run the grep.
+- **A `ReferenceError` inside the IIFE kills everything after it.** A typo'd
+  variable name (`tabletMath` for `tabletMatch`) threw at init, so every
+  statement below it — the texture load, the resize listener, the rAF loop —
+  never ran, and the canvas never got `is-ready`. The tell: the effect vanished
+  *entirely* rather than misbehaving. A shader that is genuinely wrong still
+  draws, just wrongly. An effect that is completely absent is nearly always JS
+  that died before reaching the draw call, and the console names the line.
+  Reading an undeclared variable throws; it does not quietly give `undefined`.
+- **Specificity beats source order, always.** `sections/vv-header.liquid` had
+  `body { background-color: var(--vv-shell); }` which had never once applied:
+  Dawn puts `class="gradient"` on the body and `base.css:2949` styles
+  `.gradient`. A class (0,1,0) beats an element selector (0,0,1) no matter how
+  much later your `<style>` block appears in the document. Being in an inline
+  `<style>` at the bottom of the page buys nothing against a more specific
+  selector. This is the mirror image of the misspelled-selector lesson above,
+  and the same devtools check separates them: a rule that loses on specificity
+  still appears in the Styles pane, struck through.
 
 ---
 
@@ -292,56 +353,39 @@ In the `fragSrc` array:
 - `staticOffset` (line 262): `glass * …` → `isOuter * …`
 - `amp` (line 269): `(1.0 + glass) * isOuter` → `(1.0 + isOuter) * isOuter`
 
-In the JS: drop the `glassFlags` parsing (lines 193–199), the `uGlass` location
-lookup (line 322), and the `gl.uniform1fv(uGlass, …)` upload (line 330). Keep
-`MAX_COLS` — still used to clamp `cols`.
+In the JS: drop the `glassFlags` parsing (lines 191–197), the `uGlass` location
+lookup (line 320), and the `gl.uniform1fv(uGlass, …)` upload (line 345). Keep
+`MAX_COLS` — `applyCols` still clamps against it.
 
-**Decide this before typing: `isOuter` and the CSS disagree at mobile.** The
-premise above — glass and `isOuter` are the same value — holds at 3 and 4
-columns only. With `u_cols` = 2 the GLSL returns `1.0` for *both* columns
-(`colIndex` 0 matches the first term, `colIndex` 1 matches `step(0.5, 1)`), which
-is exactly the degenerate case Stage B rejected in CSS by glassing only the
-right-hand column. So after this change the refraction would appear on a mobile
-panel that has no glass on it. Two ways out:
+### The `isOuter` question — SETTLED
 
-1. Teach the shader the same exception — at `u_cols` <= 2, treat only the last
-   column as outer. One extra term in the `isOuter` expression.
-2. Accept the mismatch below 750px and note it here as intentional.
+`isOuter` gets **redefined** so it means what the CSS means: the last column
+always, the first column only when there are at least three. Mechanically, one
+extra factor on the first-column term, gating it on `u_cols` via `step` the same
+way the expression already gates on `colIndex`.
 
-This must be settled **before** the `u_glass` path is deleted, because deleting
-it is what removes the ability to express "these specific panels are glass."
-`data-glass` is already gone from the markup as of Stage C, so the uniform is
-being fed zeros — the expressive capability is currently unused but still
-present. Once the uniform goes, restoring a per-panel override means putting the
-whole path back.
+The reasoning, because it inverts how this looked at first. The original entry
+here treated the mobile mismatch as damage to tolerate. It is the opposite. The
+CSS rule is "first and last at 3+, last only at 2." Redefine `isOuter` to say
+exactly that and it becomes **identical to the CSS at every breakpoint** — which
+restores 4b's whole premise. Glass and `isOuter` are once again the same value
+computed twice, so deleting the `u_glass` path is a genuine simplification
+rather than a loss of expressiveness. The mobile exception stops being a special
+case and becomes part of what "outer" means.
+
+Observed in the wild once Part 5 landed: at `u_cols` = 2 the current expression
+returns `1.0` for both columns — `colIndex` 0 matches the first term, `colIndex`
+1 matches `step(0.5, 1)` — so the distortion covers the whole hero with no clean
+middle, while the glass sits on the right column only. This was invisible before
+Part 5 because `u_cols` was pinned at 4.
 
 Checkpoint: glass panels regain their edge refraction and the stronger cursor
-lens, and the effect stays confined to the outer columns.
+lens; the effect stays confined to the outer columns at 3 and 4, and to the
+right-hand column alone below 750.
 
 ---
 
-## Then: Part 5 — `u_cols` on breakpoint change
 
-`u_cols` is uploaded once at init from `data-cols`, so after 4a the shader keeps
-drawing 4 columns even when the CSS has stepped to 3 or 2. The distortion seams
-drift off the panel dividers.
-
-Add a `matchMedia` listener that recomputes from the three data attributes and
-re-uploads:
-
-- `(min-width: 990px)` → `data-cols`
-- `(min-width: 750px)` → `data-cols-tablet`
-- else → `data-cols-mobile`
-
-Call it once at init (replacing the current `gl.uniform1f(uCols, cols)`) and on
-each `change` event. `matchMedia(...).addEventListener('change', …)` is the
-modern form. Once this works, rename `data-cols` to `data-cols-desktop` for
-symmetry.
-
-Checkpoint: resize across both breakpoints with the cursor in the hero — the
-refraction seams should stay glued to the dividers.
-
----
 
 ## Then: Part 6 — guardrails
 

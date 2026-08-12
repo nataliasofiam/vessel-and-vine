@@ -208,3 +208,56 @@ the number into it in the same callback.
   `data-cart-locked` does.
 - **Build in layers and test each one**, since JS has no compiler to catch a mistyped
   property — it just returns `undefined` and carries on.
+
+---
+
+## Done — overscroll exposing white above the hero
+
+Committed as `a50db993`, on the `consistent-grid` branch (the work was found
+while doing the grid, but it is header work and belongs here).
+
+**Symptom.** Scrolling up past the top of the homepage revealed a white sliver
+between the fixed gutter strip and the hero image.
+
+**Cause 1 — the bounce.** Rubber-band overscroll translates the document
+downward while `position: fixed` stays pinned to the viewport, opening a gap
+between the strip's bottom edge and the top of the page content. Whatever the
+body's background is fills it.
+
+**Cause 2 — the body background was never the shell colour.** The rule at the
+top of the `<style>` block read `body { padding-top: …; background-color:
+var(--vv-shell); }` and had *never applied*. Dawn renders
+`<body class="gradient">` (`layout/theme.liquid:324`) and `assets/base.css:2949`
+sets a background on `.gradient`. A class selector (0,1,0) beats an element
+selector (0,0,1) regardless of source order, so the inline rule lost silently
+and the page background was white the whole time.
+
+**Fix, both halves:**
+
+1. `html { overscroll-behavior-y: none; }` suppresses the bounce. The elastic
+   scroll is composited off the main thread, so JS cannot clamp the scroll range
+   without visible jank — suppressing it is the only reliable route. On `html`,
+   not `body`: propagation to the viewport is only reliably specified from the
+   root element.
+2. The selector became `body.gradient` (0,1,1), which wins outright, and
+   `background` rather than `background-color` so a configured gradient image
+   cannot paint over the colour.
+
+**Trade-offs accepted, both real:**
+
+- `overscroll-behavior-y: none` also disables **pull-to-refresh on touch**.
+  `contain` would preserve it but leaves the bounce, which doesn't solve the
+  problem — so it is genuinely one or the other.
+- Safari below 16 ignores the property and still bounces. That is why fix 2 is
+  kept rather than reverted: it is the fallback, and the rule was written to do
+  something it had never done.
+- The body background is now genuinely `--vv-shell` **site-wide**. Every section
+  carries its own background and `spacing_sections` is `0` in the Dawn preset,
+  so pages should be unchanged — except anywhere content does not fill the
+  viewport, where the area below the last section is now dark rather than white.
+  Worth a look at a short page if one is ever added.
+
+**Lesson worth keeping:** a CSS rule that has never worked looks exactly like a
+CSS rule that works. Inspect the element — a rule losing on specificity still
+appears in the Styles pane, struck through. The one that never appears at all
+isn't matching in the first place. Two different bugs, one glance apart.
