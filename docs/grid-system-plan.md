@@ -1,10 +1,10 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **Parts 1–4a and Part 5 are done, committed, and pushed.** The
-hero is driven entirely by three column settings, and the shader now follows the
-breakpoint. Next is **Part 4b**, the shader diet — its open question is settled,
-so it can be typed straight through. Read "Where we are" before touching
-anything.
+Handoff notes. **The grid work is done — Parts 1 through 5 are all committed.**
+The hero panels line up with the product columns at every breakpoint, driven by
+three settings, and glass and distortion now share one definition of "outer".
+What remains is **Part 6 housekeeping**: delete the ruler, decide the two 0-byte
+section stubs, and settle two open design questions. Read "Where we are" first.
 
 **Part 5 was moved ahead of Part 4b**, against the original order. Two reasons,
 both worth keeping: Part 5 fixed a visible defect while 4b is a cleanup with
@@ -53,9 +53,15 @@ Branch `consistent-grid`. Commits so far:
 | `b026c793` | record Part 4a complete in grid doc |
 | `8df0beb5` | shader column count follows the breakpoint — **Part 5** |
 | `a50db993` | stop overscroll exposing white above the hero — header, not grid |
+| `80e203fb` | document Part 5 and the overscroll fix |
+| `3e783c4d` | "Update vv-hero.liquid" — **Part 4b steps 1–2**, the `isOuter` redefinition and the rewiring of `staticOffset` / `amp` |
+| `4e391e27` | shader diet — **Part 4b step 3**, deleting the dead glass path |
 
-Working tree clean, pushed to `origin/consistent-grid`. Nothing is broken.
-Parts 4a and 5 are complete.
+Branch `consistent-grid`. Nothing is broken. Parts 1–5 are complete; only
+Part 6 housekeeping remains.
+
+**Part 4b was done last, after Part 5**, reversing the original order — see the
+note at the top of this file for why.
 
 ### Done — Part 1, column ruler
 
@@ -193,9 +199,68 @@ and let client-side code choose.
 - The empty `"blocks": []` left over from Stage C is deleted.
 
 
+### Done — Part 4b, shader diet
+
+Two commits: `3e783c4d` (the redefinition and the rewiring) and `4e391e27` (the
+deletion). Note that `4e391e27`'s message describes all three steps, but only
+the deletion is actually in it — the other two had already landed in
+`3e783c4d`.
+
+**`isOuter` redefined** so it means what the CSS means — the last column always,
+the first column only when there are at least three:
+
+```glsl
+float isFirst = (1.0 - step(0.5, colIndex)) * step(2.5, u_cols);
+float isLast  = step(u_cols - 1.5, colIndex);
+float isOuter = max(isFirst, isLast);
+```
+
+`step(2.5, u_cols)` is the gate — "are there at least 3 columns?" — and
+multiplying by it collapses `isFirst` to zero at 2 columns, leaving the
+right-hand column alone, which is exactly the mobile glass rule. At 3 and 4 it
+is 1.0 and the result is identical to the old single-line expression. The
+midpoint thresholds (`2.5`, `u_cols - 1.5`) rather than integers are the file's
+existing idiom for sidestepping float equality. No branching: GPUs run fragments
+in lockstep, so `step` plus arithmetic beats an `if`.
+
+**Why this inverted the plan.** The original entry treated the mobile mismatch
+as damage to tolerate, and offered "accept it and note it as intentional" as an
+option. That was backwards. Redefining `isOuter` to match the CSS makes the two
+identical at *every* breakpoint — which restores 4b's premise rather than
+complicating it. Glass and `isOuter` are once again the same value computed
+twice, so deleting the `u_glass` path became a genuine simplification instead of
+a loss of expressiveness. The mobile exception stopped being a special case and
+became part of the definition of "outer".
+
+It only became visible after Part 5. With `u_cols` pinned at 4 the degeneracy
+could not occur; once the shader followed the breakpoint, mobile showed
+distortion across both columns against glass on one. That is the argument for
+having reordered the two parts.
+
+**Then the deletion.** `staticOffset` and `amp` now read `isOuter`, which
+restored the static edge refraction and the stronger cursor lens — both absent
+since Stage C removed `data-glass` and left the uniform feeding zeros. With
+nothing left reading it, the whole per-panel array path went: `glassFlags`
+parsing, the `u_glass[]` declaration, `glassAt()` and its per-fragment loop, the
+`float glass` local, the `uGlass` lookup, and the `uniform1fv` upload. Fourteen
+lines, including a loop that ran for every fragment.
+
+**Kept, and easy to delete by mistake:** `u_glassStrength` / `glassStrength` /
+`data-glass-strength` / the `glass_strength` setting are all live — they drive
+`staticOffset`, and the slider still works. The names sit one character apart
+from the dead ones; `u_glassStrength` is declared on the line directly above
+where `u_glass` was. `MAX_COLS` also stays, down to a single use clamping in
+`applyCols`.
+
+**Note for the next reader:** `(1.0 + isOuter) * isOuter` is kept in `amp`, but
+`isOuter` is strictly 0 or 1 — `isFirst` and `isLast` are `step` results — so
+that expression can only ever be `0.0` or `2.0`, making it exactly
+`2.0 * isOuter`. The longer form is preserved for continuity with the original
+line. Do not read it as implying `isOuter` might be fractional.
+
 ### Current line numbers in `sections/vv-hero.liquid`
 
-As of `8df0beb5`. These are the numbers Part 4b needs.
+As of `4e391e27`, with the grid work complete.
 
 | Line | What |
 | --- | --- |
@@ -206,17 +271,13 @@ As of `8df0beb5`. These are the numbers Part 4b needs.
 | 134 | `</style>` |
 | 140–142 | `data-cols-desktop`, `data-cols-tablet`, `data-cols-mobile` |
 | 165 | panel loop — `{%- for i in (1..cols_max) -%}` |
-| 190 | `MAX_COLS = 8` — keep, `applyCols` clamps against it |
-| 191–197 | `glassFlags` parsing — 4b deletes |
-| 224 | `u_glass` uniform declaration — 4b deletes |
-| 229–235 | `glassAt()` — 4b deletes |
-| 254 / 255 | `float glass` / `float isOuter` — 4b deletes the first, redefines the second |
-| 260 / 267 | `staticOffset` / `amp` — 4b rewires both to `isOuter` |
-| 320 / 345 | `uGlass` lookup / `uniform1fv` upload — 4b deletes |
-| 324–325 | the two hoisted `MediaQueryList` objects |
-| 326 / 336 | `colsForViewport()` / `applyCols()` |
-| 347–348 | the two `change` listeners |
-| 521 | `"Columns"` schema header + the three `cols_*` ranges |
+| 190 | `MAX_COLS = 8` — one use left, the clamp on 319 |
+| 236–238 | `isFirst` / `isLast` / `isOuter` |
+| 243 / 250 | `staticOffset` / `amp` — both read `isOuter` |
+| 306–307 | the two hoisted `MediaQueryList` objects |
+| 308 / 318 | `colsForViewport()` / `applyCols()` |
+| 328–329 | the two `change` listeners |
+| 502 | `"Columns"` schema header + the three `cols_*` ranges |
 
 ---
 
@@ -333,59 +394,17 @@ As of `8df0beb5`. These are the numbers Part 4b needs.
   selector. This is the mirror image of the misspelled-selector lesson above,
   and the same devtools check separates them: a rule that loses on specificity
   still appears in the Styles pane, struck through.
+- **`SyntaxError` and `ReferenceError` fail at different times, and the
+  difference is diagnostic.** A missing comma between two strings in the
+  `fragSrc` array is a `SyntaxError` — JS has no implicit string concatenation,
+  so the *entire* `<script>` block is rejected at parse time and not one
+  statement runs. A `ReferenceError` is a run-time throw: everything above it
+  executes, everything below is skipped. Both present identically — the effect
+  is simply absent — and the console distinguishes them instantly. **Effect
+  completely gone → open the console before reading any code.** Both of these
+  cost a round in this branch.
 
 ---
-
-## Then: Part 4b — shader diet
-
-`glass` and `isOuter` are the same value computed twice, so the whole glass
-uniform path can go. The shader gets shorter.
-
-```glsl
-float isOuter = max(1.0 - step(0.5, colIndex), step(u_cols - 1.5, colIndex));
-```
-
-In the `fragSrc` array:
-
-- delete `'uniform float u_glass[' + MAX_COLS + '];'` (line 226)
-- delete the `glassAt()` function (lines 231–237)
-- delete `'  float glass = glassAt(colIndex);'` (line 256)
-- `staticOffset` (line 262): `glass * …` → `isOuter * …`
-- `amp` (line 269): `(1.0 + glass) * isOuter` → `(1.0 + isOuter) * isOuter`
-
-In the JS: drop the `glassFlags` parsing (lines 191–197), the `uGlass` location
-lookup (line 320), and the `gl.uniform1fv(uGlass, …)` upload (line 345). Keep
-`MAX_COLS` — `applyCols` still clamps against it.
-
-### The `isOuter` question — SETTLED
-
-`isOuter` gets **redefined** so it means what the CSS means: the last column
-always, the first column only when there are at least three. Mechanically, one
-extra factor on the first-column term, gating it on `u_cols` via `step` the same
-way the expression already gates on `colIndex`.
-
-The reasoning, because it inverts how this looked at first. The original entry
-here treated the mobile mismatch as damage to tolerate. It is the opposite. The
-CSS rule is "first and last at 3+, last only at 2." Redefine `isOuter` to say
-exactly that and it becomes **identical to the CSS at every breakpoint** — which
-restores 4b's whole premise. Glass and `isOuter` are once again the same value
-computed twice, so deleting the `u_glass` path is a genuine simplification
-rather than a loss of expressiveness. The mobile exception stops being a special
-case and becomes part of what "outer" means.
-
-Observed in the wild once Part 5 landed: at `u_cols` = 2 the current expression
-returns `1.0` for both columns — `colIndex` 0 matches the first term, `colIndex`
-1 matches `step(0.5, 1)` — so the distortion covers the whole hero with no clean
-middle, while the glass sits on the right column only. This was invisible before
-Part 5 because `u_cols` was pinned at 4.
-
-Checkpoint: glass panels regain their edge refraction and the stronger cursor
-lens; the effect stays confined to the outer columns at 3 and 4, and to the
-right-hand column alone below 750.
-
----
-
-
 
 ## Then: Part 6 — guardrails
 
