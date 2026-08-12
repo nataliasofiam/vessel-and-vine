@@ -19,6 +19,8 @@
     width: 100%;
     height: {{ section.settings.hero_height }}vh;
     background: {{ section.settings.fallback_color }};
+    --vv-glass: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05); 
+    --vv-glass-bg: rgba(255,255,255, {{ section.settings.glass_tint | divided_by: 1000.0 }}); 
   }
 
   .vv-hero__media,
@@ -53,7 +55,6 @@
     right: 0;
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat({{ cols }}, 1fr);
     pointer-events: none;
   }
 
@@ -61,19 +62,73 @@
     height: 100%;
   }
 
-  .vv-hero__panel--glass {
-  backdrop-filter: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05);
-  -webkit-backdrop-filter: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05);
-  background: rgba(255, 255, 255, {{ section.settings.glass_tint | divided_by: 1000.0 }});
-}
-
   .vv-hero__panel + .vv-hero__panel {
     border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity | divided_by: 100.0 }});
   }
 
-  @media (max-width: 750px) {
+  {% comment %} Mobile rules {%  endcomment %}
+  @media screen and (max-width: 749px) {
     .vv-hero {
       height: {{ section.settings.hero_height_mobile }}vh;
+    }
+
+    {% comment %} Set the columns {%  endcomment %}
+    .vv-hero__panels {
+      grid-template-columns: repeat({{  cols_mobile }}, 1fr);
+    }
+
+    {% comment %} Hide the surplus columns {%  endcomment %}
+    .vv-hero__panel:nth-child(n + {{  cols_mobile | plus: 1 }}){
+      display: none; 
+    }
+
+    {% comment %} Apply glass effect {%  endcomment %}
+    .vv-hero__panel:nth-child({{  cols_mobile }}) {
+      backdrop-filter: var(--vv-glass); 
+      -webkit-backdrop-filter: var(--vv-glass); 
+      background: var(--vv-glass-bg); 
+    } 
+  }
+
+  {% comment %} Tablet rules {%  endcomment %}
+  @media screen and (min-width: 750px) and (max-width: 989px) {
+ 
+    {% comment %} Set the columns {%  endcomment %}
+    .vv-hero__panels {
+      grid-template-columns: repeat({{  cols_tablet}}, 1fr);
+    }
+
+    {% comment %} Hide the surplus columns {%  endcomment %}
+    .vv-hero__panel:nth-child(n + {{  cols_tablet| plus: 1 }}){
+      display: none; 
+    }
+
+    {% comment %} Apply glass effect {%  endcomment %}
+    .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_tablet }}) {
+      backdrop-filter: var(--vv-glass); 
+      -webkit-backdrop-filter: var(--vv-glass); 
+      background: var(--vv-glass-bg);
+  }
+}
+
+  {% comment %} Desktop rules {%  endcomment %}
+  @media screen and (min-width: 990px) {
+ 
+    {% comment %} Set the columns {%  endcomment %}
+    .vv-hero__panels {
+      grid-template-columns: repeat({{  cols_desktop}}, 1fr);
+    }
+
+    {% comment %} Hide the surplus columns {%  endcomment %}
+    .vv-hero__panel:nth-child(n + {{  cols_desktop| plus: 1 }}){
+      display: none; 
+    }
+
+    {% comment %} Apply glass effect {%  endcomment %}
+    .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_desktop }}) {
+      backdrop-filter: var(--vv-glass); 
+      -webkit-backdrop-filter: var(--vv-glass); 
+      background: var(--vv-glass-bg);
     }
   }
 </style>
