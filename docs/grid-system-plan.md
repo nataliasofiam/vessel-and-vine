@@ -1,10 +1,14 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **The grid work is done — Parts 1 through 5 are all committed.**
-The hero panels line up with the product columns at every breakpoint, driven by
-three settings, and glass and distortion now share one definition of "outer".
-What remains is **Part 6 housekeeping**: delete the ruler, decide the two 0-byte
-section stubs, and settle two open design questions. Read "Where we are" first.
+Handoff notes. **This is finished — Parts 1 through 6 are all committed.** The
+hero panels line up with the product columns at every breakpoint, driven by
+three settings; glass and distortion share one definition of "outer"; the gutter
+is zeroed theme-wide and the heading sits on the grid's edge. The scaffolding
+(ruler, empty stubs) is deleted.
+
+**One thing is knowingly incomplete:** the hairlines are still scoped to
+`featured-collection`, so collection and search pages have the zero gutter
+without the rules. See "Still open after Part 6". Read "Where we are" first.
 
 **Part 5 was moved ahead of Part 4b**, against the original order. Two reasons,
 both worth keeping: Part 5 fixed a visible defect while 4b is a cleanup with
@@ -57,20 +61,25 @@ Branch `consistent-grid`. Commits so far:
 | `3e783c4d` | "Update vv-hero.liquid" — **Part 4b steps 1–2**, the `isOuter` redefinition and the rewiring of `staticOffset` / `amp` |
 | `4e391e27` | shader diet — **Part 4b step 3**, deleting the dead glass path |
 
-Branch `consistent-grid`. Nothing is broken. Parts 1–5 are complete; only
-Part 6 housekeeping remains.
+Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
 **Part 4b was done last, after Part 5**, reversing the original order — see the
 note at the top of this file for why.
 
-### Done — Part 1, column ruler
+### Done — Part 1, column ruler — *deleted in Part 6*
+
+**This no longer exists.** Kept as a record of what it did and why, because the
+technique is worth reusing. `?grid` does nothing now.
 
 `snippets/vv-grid-ruler.liquid`, rendered from `layout/theme.liquid` just before
-`</body>`. Append `?grid` to any URL to show it. Four full-bleed stripes at
+`</body>`. Appending `?grid` to any URL showed it. Four full-bleed stripes at
 `position: fixed; inset: 0` (**not** `100vw` — that includes the scrollbar and
 invents a ~15px offset), stepping 4 → 3 → 2 at 990 and 750.
 
-Delete the snippet and its `{% render %}` when the grid work lands.
+The `inset: 0` detail is the reusable part: `100vw` includes the scrollbar, so
+any full-bleed overlay measured that way sits ~15px off from the content it is
+supposed to be checking — which makes the ruler lie in exactly the situation you
+built it for.
 
 ### Done — Parts 2 and 3, product grid full-bleed
 
@@ -406,7 +415,52 @@ As of `4e391e27`, with the grid work complete.
 
 ---
 
-## Then: Part 6 — guardrails
+## Done — Part 6, housekeeping and the two design questions
+
+Commits `3cce708b` (removals) and `8ae850ac` (the design answers).
+
+**Ruler gone.** `snippets/vv-grid-ruler.liquid` and its `{% render %}` in
+`layout/theme.liquid` are deleted. `?grid` no longer does anything, so any
+instruction elsewhere in these notes to "load with `?grid`" is historical.
+
+**Stubs gone.** `sections/vv-product-row.liquid` and
+`sections/vv-editorial-band.liquid` were 0 bytes and referenced by nothing —
+no template, no section group. Deleted rather than built; git has them.
+
+**The gutter is global now.** `spacing_grid_horizontal` and
+`spacing_grid_vertical` go from 8 to 0 in `config/settings_data.json`, so
+`layout/theme.liquid:205–208` emits `0px` for all four `--grid-*-spacing`
+properties and **every product grid in the theme is full-bleed** — collection
+and search pages included. The four scoped overrides in `featured-collection`
+are redundant and removed; the tablet `calc()` still reads
+`--grid-desktop-horizontal-spacing` and now resolves it from `theme.liquid`.
+Dawn writes the `px` suffix itself, so the unitless-zero `calc()` trap does not
+apply here.
+
+**The heading aligns to the grid.** `page-width` is off `.collection__title`.
+It had contained the heading to 1200 while the grid below was full-bleed, so it
+read as a separate row rather than part of the grid. It now starts on the
+grid's outer edge, flush with the first column's content — which has no
+horizontal padding either, so the two agree.
+
+### Still open after Part 6
+
+- **The hairlines are still scoped to `featured-collection`.** Collection and
+  search pages now have a zero gutter with *no* rules between cells, which is
+  the one place the theme does not yet look like the reference. Making the grid
+  read as global end-to-end means lifting the `box-shadow` rules and
+  `--vv-rule-color` out of this section into somewhere shared. That is a real
+  change, not a move: the `:not(:nth-child(Nn + 1))` selectors are written
+  against this section's 4/3/2, and collection pages have their own column
+  settings.
+- **The breakpoints are still unrecorded.** 990 and 750 live only in this doc
+  and in two `<style>` blocks. The column counts are in `templates/index.json`
+  now, but changing one section's media queries without the other still
+  desynchronises them silently.
+
+---
+
+## Reference — settings that carry the grid
 
 - ~~Record the four numbers (4/3/2) durably.~~ **Done in Stage C.** Both
   sections now carry their counts in `templates/index.json`:
@@ -417,19 +471,11 @@ As of `4e391e27`, with the grid work complete.
   What is **not** recorded anywhere but this doc and two `<style>` blocks: the
   breakpoints themselves, 990 and 750. Changing one section's media queries
   without the other still silently desynchronises them.
-- **Decide the two 0-byte stubs**: `sections/vv-product-row.liquid` and
-  `sections/vv-editorial-band.liquid` are committed empty. Build or delete —
-  don't leave them.
-- Remove the ruler: delete `snippets/vv-grid-ruler.liquid` and its `{% render %}`
-  in `layout/theme.liquid`.
-- Open question deferred from Part 2: the section heading still carries
-  `page-width` (`featured-collection.liquid:75`), so it's contained at 1200
-  while the grid below it is full-bleed. Decide whether the heading should align
-  to the grid's outer edge.
-- Open question: the gutter change is scoped to `featured-collection`. Collection
-  and search pages still have the 8px contained grid, so the homepage and
-  collection pages no longer match. Look at both, then decide whether to go
-  global via `spacing_grid_horizontal`.
+- **Gutter**, since Part 6: `spacing_grid_horizontal` and
+  `spacing_grid_vertical` are both `0` in `config/settings_data.json`, under
+  `presets.Dawn` — `current` is the string `"Dawn"`, so the preset *is* the live
+  value. Note that the theme editor rewrites `current` into an object the first
+  time a setting is changed there; after that, edit `current`, not the preset.
 
 ## Watch out for
 
