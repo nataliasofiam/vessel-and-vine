@@ -476,6 +476,15 @@ horizontal padding either, so the two agree.
   `presets.Dawn` — `current` is the string `"Dawn"`, so the preset *is* the live
   value. Note that the theme editor rewrites `current` into an object the first
   time a setting is changed there; after that, edit `current`, not the preset.
+- **`config/settings_schema.json` had to change too.** Dawn ships both of those
+  ranges with `"min": 4`, so a saved value of `0` fails validation outright:
+  *"spacing_grid_horizontal can't be less than 4"*. The floor is lowered to `0`
+  on both. `step` stays `4`, so the legal values are now 0, 4, 8, … and the
+  slider still reaches zero cleanly. This is an edit to a stock Dawn config
+  file — expect a conflict here if the theme is ever updated from upstream.
+  The alternative was to leave the setting at `4` and zero the properties in
+  CSS instead, which was rejected: the theme-editor slider would then display a
+  gutter the storefront does not have.
 
 ## Watch out for
 
