@@ -21,10 +21,28 @@
     --vv-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  /* Push the page down so nothing hides beneath the fixed gutter strip. */
-  body {
+  /* No rubber-band at the scroll boundaries. The fixed gutter strip stays
+     pinned to the viewport during an overscroll bounce while the document
+     slides, which opens a gap above the hero. Suppressing the bounce is the
+     only reliable fix — the elastic scroll is composited off the main thread,
+     so JS cannot clamp it without visible jank. Also disables pull-to-refresh
+     on touch. Ignored by Safari below 16, which is why the body background
+     below still has to be correct. */
+  html {
+    overscroll-behavior-y: none;
+  }
+
+  /* Push the page down so nothing hides beneath the fixed gutter strip.
+     Selector must be `body.gradient`, not `body`: Dawn puts `.gradient` on the
+     body (theme.liquid) and base.css sets a background on it. A class beats an
+     element selector on specificity no matter the source order, so a plain
+     `body` rule here is silently overridden. The shell colour has to win, or
+     overscroll at the top of the page exposes Dawn's white behind the fixed
+     strip. `background`, not `background-color`, so any configured gradient
+     image is cleared along with the colour. */
+  body.gradient {
     padding-top: var(--vv-gutter);
-    background-color: var(--vv-shell);
+    background: var(--vv-shell);
   }
 
   /* ---- The gutter strip -------------------------------------------------- */
