@@ -109,7 +109,7 @@
         -webkit-backdrop-filter: var(--vv-glass);
         background: var(--vv-glass-bg);
     }
-  }
+    }
 
     {% comment %} Desktop rules {%  endcomment %}
     @media screen and (min-width: 990px) {
@@ -137,7 +137,7 @@
   class="vv-hero"
   id="vv-hero-{{ section.id }}"
   data-vv-hero
-  data-cols="{{ cols_desktop }}"
+  data-cols-desktop="{{ cols_desktop }}"
   data-cols-tablet="{{ cols_tablet }}"
   data-cols-mobile="{{ cols_mobile }}"
   data-strength="{{ section.settings.mouse_strength | divided_by: 1000.0 }}"
@@ -188,8 +188,6 @@
     if (!gl) return;
 
     var MAX_COLS = 8;
-
-    var cols = Math.min(parseInt(root.dataset.cols, 10) || 1, MAX_COLS);
     var glassFlags = (root.dataset.glass || '')
       .split(',')
       .map(function (v) {
@@ -322,12 +320,32 @@
     var uGlass = gl.getUniformLocation(program, 'u_glass');
     var uActive = gl.getUniformLocation(program, 'u_active');
 
+    var desktopMatch = window.matchMedia('(min-width:990px)'); 
+    var tabletMatch = window.matchMedia('(min-width: 750px)'); 
+
+    function colsForViewport() {
+      if (desktopMatch.matches){
+      return parseInt(root.dataset.colsDesktop, 10) || 1; 
+      }
+      if (tabletMatch.matches){
+      return parseInt(root.dataset.colsTablet, 10) || 1; 
+      }
+      return parseInt(root.dataset.colsMobile, 10) || 1; 
+    }
+
+    function applyCols() {
+      gl.uniform1f(uCols, Math.min(colsForViewport(), MAX_COLS)); 
+    }
+
     gl.uniform1i(uImage, 0);
     gl.uniform1f(uStrength, strength);
     gl.uniform1f(uRadius, radius);
     gl.uniform1f(uGlassStrength, glassStrength);
-    gl.uniform1f(uCols, cols);
+    applyCols(); 
     gl.uniform1fv(uGlass, new Float32Array(glassFlags));
+
+    desktopMatch.addEventListener('change', applyCols); 
+    tabletMatch.addEventListener('change', applyCols); 
 
     var texture = gl.createTexture();
     var imageAspect = 1;
@@ -590,7 +608,6 @@
       "default": 30
     }
   ],
-  "blocks": [],
   "presets": [
     {
       "name": "Hero"
