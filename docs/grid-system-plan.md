@@ -73,7 +73,7 @@ Branch `consistent-grid`. Commits so far:
 | `80e203fb` | document Part 5 and the overscroll fix |
 | `3e783c4d` | "Update vv-hero.liquid" — **Part 4b steps 1–2**, the `isOuter` redefinition and the rewiring of `staticOffset` / `amp` |
 | `4e391e27` | shader diet — **Part 4b step 3**, deleting the dead glass path |
-| `c28026ed` | hairlines become a page-wide overlay — **Part 7c** |
+| `a552663a` | hairlines become a page-wide overlay — **Part 7c** |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
