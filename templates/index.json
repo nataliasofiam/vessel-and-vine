@@ -58,7 +58,6 @@
         "fallback_color": "#1a2c40",
         "hero_height": 100,
         "hero_height_mobile": 60,
-        "divider_opacity": 60,
         "mouse_strength": 10,
         "mouse_radius": 80,
         "glass_strength": 28,

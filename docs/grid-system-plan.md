@@ -1,17 +1,27 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **Parts 1 through 6 are committed and the grid system works.**
-The hero panels line up with the product columns at every breakpoint, driven by
-three settings; glass and distortion share one definition of "outer"; the gutter
-is zeroed theme-wide. The scaffolding (ruler, empty stubs) is deleted.
+Handoff notes. **Parts 1 through 6 and 7c are committed and the grid system
+works.** The hero panels line up with the product columns at every breakpoint,
+driven by three settings; glass and distortion share one definition of "outer";
+the gutter is zeroed theme-wide. The scaffolding (ruler, empty stubs) is
+deleted. The hairlines are now one page-wide overlay in
+`snippets/vv-grid-lines.liquid`, which also owns the line colour for the whole
+theme.
 
-**Next is Part 7** — reshaping `featured-collection` into a full-width
-horizontal scroller with no heading, to match the reference. Note that 7a
-supersedes a Part 6 decision.
+**Part 7 is being built in the order 7c → 7b → 7d → 7a**, decided 2026-08-14.
+7c first because the per-item `:nth-child` hairline rules would break in 7b's
+scroller, so removing that coupling had to come first. **7a is settled: the
+heading gets rebuilt on the grid** — title in one cell, "View all" in another —
+not removed. That supersedes both the original request and the Part 6 decision.
 
-**Knowingly incomplete:** the hairlines are still scoped to
-`featured-collection`, so collection and search pages have the zero gutter
-without the rules. See "Still open after Part 6". Read "Where we are" first.
+**Next is 7b** — turning the product grid into a horizontal scroller. Read
+"Done — Part 7c" first; it changed the page's background contract in a way 7b
+inherits.
+
+**Knowingly incomplete:** `templates/index.json:61` still carries
+`"divider_opacity": 60` for a setting deleted from the `vv-hero` schema, and
+the footer and header are still opaque so the lines stop at both ends of the
+page. See "Still open after Part 7c". Read "Where we are" first.
 
 **Part 5 was moved ahead of Part 4b**, against the original order. Two reasons,
 both worth keeping: Part 5 fixed a visible defect while 4b is a cleanup with
@@ -63,6 +73,7 @@ Branch `consistent-grid`. Commits so far:
 | `80e203fb` | document Part 5 and the overscroll fix |
 | `3e783c4d` | "Update vv-hero.liquid" — **Part 4b steps 1–2**, the `isOuter` redefinition and the rewiring of `staticOffset` / `amp` |
 | `4e391e27` | shader diet — **Part 4b step 3**, deleting the dead glass path |
+| `c28026ed` | hairlines become a page-wide overlay — **Part 7c** |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
@@ -331,8 +342,9 @@ As of `4e391e27`, with the grid work complete.
   gitignored. Always pass a path — a bare `--write .` reformats all of Dawn.
 - **`--vv-gutter` is already taken** by `sections/vv-header.liquid:9`, where it
   means "header shell inset". Pick different names. In use so far:
-  `--vv-rule-color` (featured-collection), `--vv-glass` / `--vv-glass-bg` (hero,
-  pending).
+  `--vv-rule-color` (featured-collection), `--vv-glass` / `--vv-glass-bg`
+  (hero), `--vv-hairline` (`:root`, declared in `snippets/vv-grid-lines.liquid`
+  — the only theme-wide one), `--vv-shell` (vv-header).
 - **Three mutually exclusive media ranges beat cascade layering.** Used for both
   the hairlines and the hero panels: `max-width: 749`, `750–989`, `min-width: 990`.
   Exactly one matches, so there is no override reasoning to get wrong.
@@ -397,6 +409,61 @@ As of `4e391e27`, with the grid work complete.
   draws, just wrongly. An effect that is completely absent is nearly always JS
   that died before reaching the draw call, and the console names the line.
   Reading an undeclared variable throws; it does not quietly give `undefined`.
+- **A stray space kills a function call, and the symptom depends on where it
+  hides.** `repeat (2, 1fr)` — one space before the paren — is not a function,
+  so the value is invalid and *the whole declaration is dropped*. `display: grid`
+  still applied, leaving a grid with no declared column track: one implicit
+  column, and every child became a row. Same root cause as the
+  `brightness (1.05)` entry below, but that one hid inside a custom property and
+  failed a layer later at substitution, while this one failed immediately.
+  The tell is the same in both cases: an effect that is *structurally* wrong
+  rather than absent.
+- **An unclosed rule breaks its neighbours, and that is the diagnosis.** A
+  missing `}` on `.vv-hero__panel + .vv-hero__panel` didn't just lose the
+  divider — CSS error recovery consumes tokens until it finds a matching brace,
+  so the `@media (max-width: 749px)` block that followed was swallowed into the
+  rule and discarded, taking the hero's `grid-template-columns` with it.
+  **A value error breaks one thing; a structural error breaks the things
+  around it.** If a change to one declaration also disturbs its neighbours,
+  stop reading values and count braces. Third brace-depth failure on this
+  branch, and each one a different shape: rules nested too deep (Part 4a),
+  rules escaped *out* of a media query (7c, the `display: block` pair), and now
+  a block left hanging open.
+- **`.color-scheme-N` paints a background, not just variables.**
+  `layout/theme.liquid:121` renders `body, .color-scheme-1, .color-scheme-2, …`
+  from a Liquid-built selector list and sets `background-color` on all of them.
+  So a section can have *two* independent opaque backgrounds — one from
+  `.gradient`, one from its colour-scheme class — and removing the obvious one
+  changes nothing. Worse, the selector doesn't exist until Liquid renders it,
+  so grepping the CSS for `.color-scheme-1` finds nothing. **If an element is
+  still painted after you removed its background, look for a second rule before
+  doubting the first edit.**
+- **An opaque background is a contract with everything drawn on top of it.**
+  Removing one is never only a background change. Here it revealed a near-black
+  page shell, and dark text and dark hairlines went invisible in the same
+  instant — two unrelated-looking symptoms from one edit. Before deleting a
+  background, ask what colour the thing *behind* it is, and what was chosen
+  against the old one.
+- **`elementsFromPoint` cannot see `pointer-events: none` elements**, because
+  it does hit testing, not paint inspection. An overlay built to be
+  click-through will never appear in its results no matter how correct it is.
+  It also answers only for points inside the viewport and returns `[]` for
+  anything below the fold — `getBoundingClientRect()` is viewport-relative, so
+  a section further down the page yields a `y` that is simply off-screen. Both
+  of these produced confidently empty output that meant nothing.
+- **Custom properties are inherited, so where you declare one decides who can
+  read it.** A variable on `.vv-grid-lines` is visible only to its own
+  descendants. Sharing a value across sections means declaring it on `:root`.
+  And unlike every specificity lesson on this branch, *position in the document
+  does not matter* — a `:root` rule in a `<style>` rendered near `</body>`
+  still reaches a section at the top of the page, because custom properties
+  resolve at computed-style time rather than by source order.
+- **Delete a schema setting and the template keeps the key.** Removing
+  `divider_opacity` from `vv-hero`'s schema left `"divider_opacity": 60` in
+  `templates/index.json`. Shopify ignores keys with no matching setting, so
+  nothing errors — the dead value just sits there looking live. Same half-done
+  migration as Part 4a Stage C, and the same fix: change the schema and the
+  template together, or not at all.
 - **Specificity beats source order, always.** `sections/vv-header.liquid` had
   `body { background-color: var(--vv-shell); }` which had never once applied:
   Dawn puts `class="gradient"` on the body and `base.css:2949` styles
@@ -448,15 +515,107 @@ horizontal padding either, so the two agree.
 
 ### Still open after Part 6
 
-- **The hairlines are still scoped to `featured-collection`.** Collection and
-  search pages now have a zero gutter with *no* rules between cells. **Part 7c
-  supersedes this** — the reference draws its lines as one fixed page-wide
-  overlay rather than per-item borders, which is global by construction. Do not
-  solve this by lifting the `box-shadow` rules somewhere shared; read 7c first.
+- ~~**The hairlines are still scoped to `featured-collection`.**~~ **Fixed in
+  Part 7c** — they are one page-wide overlay now, global by construction.
 - **The breakpoints are still unrecorded.** 990 and 750 live only in this doc
   and in two `<style>` blocks. The column counts are in `templates/index.json`
   now, but changing one section's media queries without the other still
   desynchronises them silently.
+
+---
+
+## Done — Part 7c, hairlines become a page-wide overlay
+
+Built 2026-08-14, **out of the planned order** — 7c before 7b, because the
+per-item rules it deletes are exactly the ones that break in 7b's scroller.
+
+### What exists now
+
+**`snippets/vv-grid-lines.liquid`** — a permanent version of the deleted ruler.
+`position: fixed; inset: 0; z-index: -1; pointer-events: none`, a 2/3/4 column
+grid at the same 750/990 breakpoints, four spans each with a `border-left`,
+the first suppressed and the surplus hidden by `:nth-child(n + 3)`. Rendered
+from `layout/theme.liquid:329`, **after** the skip-to-content link so that link
+stays the first element in the document for keyboard users.
+
+**It owns `--vv-hairline` for the whole theme**, declared on `:root` inside the
+snippet. Three things read it: the overlay's own spans,
+`featured-collection.liquid:54` (`--vv-rule-color`, the horizontal rules), and
+`vv-hero.liquid:66` (the panel dividers). One value, three drawers.
+
+Declaring a document-level variable inside a body-rendered snippet looks wrong
+and isn't: custom properties resolve at computed-style time, not by source
+order, so a `:root` rule in a `<style>` near `</body>` still reaches a section
+earlier in the document. This is the opposite of how specificity and source
+order have behaved everywhere else in this branch.
+
+**`featured-collection.liquid`** lost all three `:not(:nth-child(Nn + 1))`
+media blocks — every vertical hairline and all the column arithmetic. What
+survives is one rule, `box-shadow: 0 -1px 0 var(--vv-rule-color)`, drawing the
+*horizontal* row rules. An overlay can only ever draw verticals; it has no idea
+where a row starts. `padding: 2rem 0` went too, closing the black bands between
+rows.
+
+**`vv-hero`'s `divider_opacity` setting is deleted** from the schema, since the
+border now reads the shared variable. The stale key in `templates/index.json`
+is still there — see below.
+
+### The two things that made this hard
+
+**The section had two opaque backgrounds, not one.** Removing `gradient` from
+the wrapper was not enough: `layout/theme.liquid:121` renders
+`body, .color-scheme-1, .color-scheme-2, … { background-color: rgb(var(--color-background)); }`
+from a Liquid-built selector list, so `.color-scheme-1` paints a background all
+by itself, through a rule that has nothing to do with `.gradient`. Grepping the
+CSS files for `.color-scheme-1` finds nothing — the selector only exists after
+Liquid renders it.
+
+Fixed with a `vv-no-bg` class on the wrapper and
+`div.vv-no-bg { background-color: transparent; }` in the section's `{%- style -%}`.
+The selector is deliberately `div.vv-no-bg` at `(0,1,1)` rather than
+`.vv-no-bg` at `(0,1,0)`: a bare class ties with `.color-scheme-1` and would
+have been decided by source order, which is true today and fragile forever.
+
+**The page shell is near-black.** `vv-header.liquid:43` sets
+`body.gradient { background: var(--vv-shell); }` with `#0a0a0c` from
+`header-group.json:52`. The featured collection had been a white island on it,
+and the only thing making it white was the background just removed. So the
+moment it went transparent, both the dark text (`#121212`) and the dark
+hairlines (`rgba(18, 18, 18, 0.15)`) became invisible at once — two symptoms,
+one cause. Hairlines went white to match the hero and the reference; the text
+is left for 7d, which moves it anyway.
+
+### Why the overlay stays *behind* the page
+
+It was tempting to float it on top and have a single system draw everything,
+which would let `vv-hero` drop its own dividers entirely. Rejected, and the
+reason is worth keeping: the product photographs are near-white, so a white
+line at low alpha vanishes on top of them. The overlay only ever draws against
+the near-black shell, which is the one background its colour is tuned for. The
+hero draws its own because it needs a line that survives photography.
+
+So the lines are visible in every band of shell — padding, text areas, above
+and below sections — and interrupted wherever an image sits. That is not a
+limitation being worked around; it is what lets one white value work at all,
+and it is why the reference indents its product *text* (7d) instead of trying
+to draw across its images.
+
+### Still open after Part 7c
+
+- **`templates/index.json:61` still has `"divider_opacity": 60`** for a setting
+  no longer in the `vv-hero` schema. Shopify ignores template keys with no
+  matching setting, so nothing breaks, but it is dead data — the same half-done
+  migration as Part 4a Stage C.
+- **The footer and header are opaque**, so the lines stop at both ends of the
+  page. `footer.liquid:30` and the header both carry `color-… gradient`. The
+  same `vv-no-bg` treatment would extend the lines; whether they *should* run
+  edge to edge was not decided.
+- **The horizontal rules may not survive Part 7.** They are the last thing in
+  `featured-collection` still drawn per item. Once 7b makes the grid a single
+  scrolling row there are no rows to separate, so decide their fate there
+  rather than now.
+- **`--vv-hairline` is currently `rgba(255, 255, 255, .8)`** — chosen quickly
+  while debugging, not designed. Worth a deliberate look against the reference.
 
 ---
 
@@ -541,8 +700,10 @@ asks for.
 
 ### The work
 
-**7a — the heading. Decide before typing anything else.** Two readings, and
-they lead to different work:
+**7a — the heading. DECIDED 2026-08-14: rebuild it on the grid**, the second
+reading below. Title in one cell, "View all" in another, both aligned to the
+overlay lines. Do this last, after 7b and 7d. The two readings, kept for the
+reasoning:
 
 - *Remove it*, as requested. Note that blanking `title` in
   `templates/index.json` only hides the `<h2>` — line 123 wraps that in
@@ -578,7 +739,11 @@ Also note the two rules tuned for a gutter that now resolve to zero:
 `calc(-1 * var(--grid-desktop-horizontal-spacing))`, and `:first-child` uses
 `--desktop-margin-left-first-item` for the leading inset.
 
-**7c — hairlines become an overlay.** This supersedes the per-item `box-shadow`
+**7c — hairlines become an overlay. DONE — see "Done — Part 7c" above.** The
+plan below is left as written for the record; the consequence it flags in its
+last paragraph is exactly what happened, and cost most of the session.
+
+This supersedes the per-item `box-shadow`
 approach from Parts 2–3, and it is what makes 7b safe. The current rules use
 `:not(:nth-child(4n + 1))`, written for a *wrapping* grid where every 4th item
 begins a new row. A horizontal scroller is one continuous row of N, so `4n + 1`
@@ -603,7 +768,9 @@ column edge while the text clears the line, which is what the reference does.
 
 ### Checkpoint 7
 
-- Hairlines continuous down the whole page, not just beside the product grid
+- ~~Hairlines continuous down the whole page~~ — **done in 7c**, with the
+  caveat that they stop at the header and footer, which are still opaque, and
+  are interrupted by product images by design
 - One product row, full width, scrolling horizontally, no scrollbar on `<body>`
 - Whatever was decided in 7a, aligned to the same lines as everything else
 - Product names clear of the hairlines; images still flush

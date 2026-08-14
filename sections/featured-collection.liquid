@@ -51,32 +51,18 @@
     }
 
     #collection-{{ section.id }} {
-      --vv-rule-color: rgba(var(--color-foreground), 0.15);
+      --vv-rule-color: var(--vv-hairline);
     }
+    {% comment %}
+    Painting nothing so the page-wide hairline overlay shows through. 
+    {% endcomment %}
 
+    div.vv-no-bg { background-color: transparent; }
 
     #collection-{{ section.id }} .grid__item {
-      padding: 2rem 0;
       box-shadow: 0 -1px 0 var(--vv-rule-color);
     }
 
-     @media screen and (max-width: 749px) {
-      #collection-{{ section.id }} .grid__item:not(:nth-child(2n + 1)) {
-      box-shadow: -1px 0 0 var(--vv-rule-color), 0 -1px 0 var(--vv-rule-color);
-      }
-    }
-
-    @media screen and (min-width: 750px) and (max-width: 989px) {
-      #collection-{{ section.id }} .grid__item:not(:nth-child(3n + 1)) {
-      box-shadow: -1px 0 0 var(--vv-rule-color), 0 -1px 0 var(--vv-rule-color);
-      }
-    }
-
-    @media screen and (min-width: 990px) {
-      #collection-{{ section.id }} .grid__item:not(:nth-child(4n + 1)) {
-      box-shadow: -1px 0 0 var(--vv-rule-color), 0 -1px 0 var(--vv-rule-color);
-      }
-    }
 {%- endstyle -%}
 
 {%- liquid
@@ -106,7 +92,7 @@
 -%}
 
 <div
-  class="color-{{ section.settings.color_scheme }} isolate gradient"
+  class="color-{{ section.settings.color_scheme }} isolate vv-no-bg"
 >
   <div
     class="collection{% if section.settings.quick_add == 'bulk' %} collection-quick-add-bulk{% endif %} section-{{ section.id }}-padding{% if section.settings.full_width %} collection--full-width{% endif %}"

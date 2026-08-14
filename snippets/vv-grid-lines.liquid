@@ -1,0 +1,55 @@
+{% comment %}
+  Page-wide column hairlines: one fixed overlay behind the whole page, replacing
+  the per-item box-shadow rules scoped to feature-collection.
+  Counts and breakpoints must match sections/vv-hero.liquid and
+  the product grid - 4 / 3 / 2 at 990 / 750.
+{% endcomment %}
+
+<div class="vv-grid-lines" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+
+<style>
+    {% comment %}
+     Owns the hairline color for the whole theme.
+     {% endcomment %}
+  :root {
+    --vv-hairline: rgba(255, 255, 255, .8);
+    }
+  .vv-grid-lines {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .vv-grid-lines span {
+    border-left: 1px solid var(--vv-hairline);
+  }
+
+  .vv-grid-lines span:first-child {
+    border-left: 0;
+  }
+
+  .vv-grid-lines span:nth-child(n + 3) {
+    display: none;
+  }
+
+  @media screen and (min-width: 750px) {
+    .vv-grid-lines {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .vv-grid-lines span:nth-child(3) {
+      display: block;
+    }
+  }
+
+  @media screen and (min-width: 990px) {
+    .vv-grid-lines {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .vv-grid-lines span:nth-child(4) {
+      display: block;
+    }
+  }
+</style>

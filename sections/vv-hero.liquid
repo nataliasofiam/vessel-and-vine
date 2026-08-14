@@ -63,9 +63,8 @@
     }
 
     .vv-hero__panel + .vv-hero__panel {
-      border-left: 1px solid rgba(255, 255, 255, {{ section.settings.divider_opacity | divided_by: 100.0 }});
+      border-left: 1px solid var(--vv-hairline); 
     }
-
     {% comment %} Mobile rules {%  endcomment %}
     @media screen and (max-width: 749px) {
       .vv-hero {
@@ -486,16 +485,6 @@
       "step": 5,
       "default": 60,
       "unit": "vh"
-    },
-    {
-      "type": "range",
-      "id": "divider_opacity",
-      "label": "Divider opacity",
-      "min": 0,
-      "max": 100,
-      "step": 5,
-      "default": 35,
-      "unit": "%"
     },
     {
       "type": "header",
