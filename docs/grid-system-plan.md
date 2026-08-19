@@ -81,7 +81,7 @@ Branch `consistent-grid`. Commits so far:
 | `4e391e27` | shader diet — **Part 4b step 3**, deleting the dead glass path |
 | `a552663a` | hairlines become a page-wide overlay — **Part 7c** |
 | `10683765` | record the Part 7c commit hash |
-| *(recorded in the follow-up commit)* | featured collection becomes a scroller — **Part 7b**, desktop only |
+| `79eb7f8f` | featured collection becomes a scroller — **Part 7b**, desktop only |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
