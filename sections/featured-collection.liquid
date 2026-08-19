@@ -53,6 +53,29 @@
     #collection-{{ section.id }} {
       --vv-rule-color: var(--vv-hairline);
     }
+
+    #collection-{{ section.id }} .slider {
+      scroll-snap-type: x proximity; 
+    }
+
+    #collection-{{ section.id }} slider-component {
+      --desktop-margin-left-first-item: 0px;
+    }
+
+    #collection-{{ section.id }} .slider-buttons {
+      --color-foreground: 255, 255, 255; 
+    }
+
+    /* Dawn tacks a 5rem pseudo-element onto the end of the desktop track so the
+       last card is not flush to the edge, and claws back one gutter's width via
+       margin-left. Our gutter is 0px, so the full 5rem survived and every column
+       sat 50px left of the hairlines at maximum scroll. This is the trailing twin
+       of the --desktop-margin-left-first-item override above. */
+    #collection-{{ section.id }} .slider--desktop::after {
+      padding-left: 0;
+    }
+
+
     {% comment %}
     Painting nothing so the page-wide hairline overlay shows through. 
     {% endcomment %}
@@ -247,6 +270,135 @@
     {%- endif -%}
   </div>
 </div>
+
+<script>
+  (function () {
+    const track = document.getElementById('Slider-{{ section.id }}');
+    if (!track) return;
+
+    // Hijacking the wheel is a motion effect. If the visitor has asked for less
+    // of it, leave scrolling alone entirely -- the arrows still work.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    // Fraction of the remaining distance travelled each frame. Lower is slower
+    // and smoother; 1 would be an instant jump.
+    const EASING = 0.14;
+    // A line-mode delta (Firefox) is about 3 per notch against Chrome's 100.
+    const LINE_HEIGHT = 33;
+    // Quiet time after the last wheel tick before the row settles onto a column.
+    const SETTLE_DELAY = 120;
+
+    let target = track.scrollLeft;
+    let rafId = null;
+    let settleTimer = null;
+
+    function maxScroll() {
+      return track.scrollWidth - track.clientWidth;
+    }
+
+    // Distance from one column to the next, measured off the live layout rather
+    // than recomputed from the column count, so it stays right at every
+    // breakpoint. getBoundingClientRect is used instead of offsetLeft because
+    // offsetLeft rounds to whole pixels and the column pitch is fractional
+    // (a quarter of the track, e.g. 423.75) -- the rounding error would
+    // accumulate across the row.
+    function columnPitch() {
+      if (track.children.length < 2) return 0;
+      const a = track.children[0].getBoundingClientRect().left;
+      const b = track.children[1].getBoundingClientRect().left;
+      return b - a;
+    }
+
+    // The listener is on window, so the row would otherwise swallow page
+    // scrolling from anywhere in the document -- including before it has been
+    // reached. It only takes the wheel while it actually overlaps the middle of
+    // the viewport.
+    function inView() {
+      const rect = track.getBoundingClientRect();
+      const h = window.innerHeight;
+      return rect.bottom > h * 0.25 && rect.top < h * 0.75;
+    }
+
+    function restoreSnap() {
+      track.style.scrollSnapType = '';
+    }
+
+    function step() {
+      const current = track.scrollLeft;
+      const diff = target - current;
+
+      if (Math.abs(diff) < 0.5) {
+        track.scrollTo({ left: target, behavior: 'instant' });
+        rafId = null;
+        // Only hand snapping back once no settle is still pending, or the
+        // stylesheet's rule would fight the settle animation.
+        if (settleTimer === null) restoreSnap();
+        return;
+      }
+
+      // behavior 'instant' per frame, so the CSS `scroll-behavior: smooth` that
+      // the arrow buttons rely on cannot animate against this loop.
+      track.scrollTo({ left: current + diff * EASING, behavior: 'instant' });
+      rafId = window.requestAnimationFrame(step);
+    }
+
+    // Alignment is done here rather than left to `scroll-snap-type: proximity`,
+    // which only settles when it happens to land inside its own threshold and so
+    // leaves the columns a few pixels off the hairlines. Rounding the target to a
+    // whole number of columns puts them on the lines every time, and the easing
+    // loop glides there.
+    function settle() {
+      settleTimer = null;
+      const pitch = columnPitch();
+      if (pitch > 0) {
+        const limit = maxScroll();
+        target = Math.min(limit, Math.max(0, Math.round(target / pitch) * pitch));
+      }
+      if (rafId !== null) return;
+      if (Math.abs(track.scrollLeft - target) < 0.5) {
+        restoreSnap();
+      } else {
+        rafId = window.requestAnimationFrame(step);
+      }
+    }
+
+    window.addEventListener(
+      'wheel',
+      function (event) {
+        if (!inView()) return;
+
+        const delta = event.deltaMode === 1 ? event.deltaY * LINE_HEIGHT : event.deltaY;
+        const max = maxScroll();
+
+        // Fewer products than columns, or a viewport the track already fits:
+        // there is nothing to consume.
+        if (max <= 0) return;
+
+        // Resync before testing, in case the arrows or a drag moved the row
+        // since the last gesture.
+        if (rafId === null && settleTimer === null) target = track.scrollLeft;
+
+        // No room left in the direction of travel: consume nothing and let the
+        // page scroll as it normally would.
+        if (delta > 0 && target >= max - 1) return;
+        if (delta < 0 && target <= 1) return;
+
+        event.preventDefault();
+
+        // Measured against the target rather than the live position, so ticks
+        // arriving mid-animation queue up instead of being dropped.
+        target = Math.min(max, Math.max(0, target + delta));
+
+        track.style.scrollSnapType = 'none';
+        window.clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(settle, SETTLE_DELAY);
+
+        if (rafId === null) rafId = window.requestAnimationFrame(step);
+      },
+      { passive: false }
+    );
+  })();
+</script>
 
 {% schema %}
 {

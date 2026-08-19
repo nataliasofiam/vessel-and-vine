@@ -14,14 +14,20 @@ scroller, so removing that coupling had to come first. **7a is settled: the
 heading gets rebuilt on the grid** — title in one cell, "View all" in another —
 not removed. That supersedes both the original request and the Part 6 decision.
 
-**Next is 7b** — turning the product grid into a horizontal scroller. Read
-"Done — Part 7c" first; it changed the page's background contract in a way 7b
-inherits.
+**7b is built but not verified** — the product grid is a horizontal scroller
+now, driven by a custom wheel handler. See "Done — Part 7b". The one thing
+still unconfirmed is the thing this whole branch is about: whether the columns
+come to rest exactly on the hairlines. Read "Where we are" first.
 
-**Knowingly incomplete:** `templates/index.json:61` still carries
-`"divider_opacity": 60` for a setting deleted from the `vv-hero` schema, and
-the footer and header are still opaque so the lines stop at both ends of the
-page. See "Still open after Part 7c". Read "Where we are" first.
+**Next is 7d, then 7a.** A design decision added 2026-08-19 reaches across
+both: the section title, the "View all" action, the product names *and* the
+slider arrows should all sit **inside** the row, on the grid, rather than above
+and below it. 7a and 7d already cover the first three. The arrows are new work
+with no reference to copy — the reference puts its arrows outside the row.
+
+**Knowingly incomplete:** the footer and header are still opaque so the lines
+stop at both ends of the page, and tablet/mobile columns do not line up with
+the overlay at all yet. See "Still open after Part 7b".
 
 **Part 5 was moved ahead of Part 4b**, against the original order. Two reasons,
 both worth keeping: Part 5 fixed a visible defect while 4b is a cleanup with
@@ -74,6 +80,8 @@ Branch `consistent-grid`. Commits so far:
 | `3e783c4d` | "Update vv-hero.liquid" — **Part 4b steps 1–2**, the `isOuter` redefinition and the rewiring of `staticOffset` / `amp` |
 | `4e391e27` | shader diet — **Part 4b step 3**, deleting the dead glass path |
 | `a552663a` | hairlines become a page-wide overlay — **Part 7c** |
+| `10683765` | record the Part 7c commit hash |
+| *(recorded in the follow-up commit)* | featured collection becomes a scroller — **Part 7b**, desktop only |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
@@ -482,6 +490,51 @@ As of `4e391e27`, with the grid work complete.
   is simply absent — and the console distinguishes them instantly. **Effect
   completely gone → open the console before reading any code.** Both of these
   cost a round in this branch.
+- **Two dashes make it a custom property, and a custom property is inert.**
+  `--scroll-snap-type: x proximity` is perfectly valid CSS that does absolutely
+  nothing: it declares a variable nobody reads. The real property has no dashes.
+  This came straight after three legitimate `--` shadowing rules in the same
+  style block — the pattern was copied one rule too far. The distinction: you
+  shadow a variable when the behaviour you want is already *parameterised* by
+  one; `scroll-snap-type` is the property doing the work, so you set it. This is
+  the third variant of "declaration fine, effect zero" on this branch, and the
+  only one with no substitution to inspect — there is no consumer anywhere.
+- **`--color-foreground` holds a bare RGB triplet, not a colour.** Every
+  consumer wraps it as `rgba(var(--color-foreground), 0.75)`, so `18, 18, 18` is
+  the whole value. Setting it to `rgba(255, 255, 255, 100%)` produces
+  `rgba(rgba(255,255,255,100%), 0.75)` — nonsense, declaration dropped, and the
+  variable reads back perfectly in the console. **When a `var()` does nothing,
+  paste its value into the declaration that reads it and read the result as
+  CSS.** The error is at the join, not at either end. Splitting colour from
+  alpha is also *why* one override fixed four states at once: resting 0.75,
+  hover 1.0, disabled 0.3, and the counter inheriting.
+- **C# habits are SyntaxErrors, and a SyntaxError kills the whole `<script>`.**
+  `bool atRight = …` and `max - 1px` both got typed. JS has no type keywords and
+  no units — `scrollLeft` and friends are plain numbers counting CSS pixels.
+  Neither is a subtle bug: nothing in the block runs, including the parts that
+  worked a minute earlier. Console first.
+- **Assigning to a DOM property that does not exist is silent.**
+  `track.scrollRight += delta` invents an expando on the element and stores a
+  number in it. No error, no warning, no effect. There is no `scrollRight`;
+  horizontal position is `scrollLeft` and nothing else.
+- **`event.deltaY *= 33` appears to work and is still wrong.** `deltaY` is
+  read-only on `WheelEvent`, so outside strict mode the write is discarded while
+  the expression still evaluates to the product. Right answer, wrong mechanism,
+  and it throws the moment the code lands anywhere strict.
+- **`offsetLeft` rounds to whole pixels; `getBoundingClientRect()` does not.**
+  The column pitch here is a quarter of the track — `423.75` at 1695px — so
+  measuring it with `offsetLeft` drifts by a couple of pixels across the row.
+  For anything being compared against a fixed overlay, measure with rects.
+- **`wheel` listeners are passive by default on `window` but not on an
+  element.** Moving the listener from the `<ul>` to `window` silently turns
+  `preventDefault()` into a no-op unless `{ passive: false }` is passed. The
+  same code, the same call, a different target, and the feature quietly stops
+  working. Also: the boolean third argument means `capture`, never `passive`.
+- **`innerWidth` includes the scrollbar; the layout does not.** A diagnostic
+  comparing item widths against `innerWidth / 4` was off by ~4px for a whole
+  round. `document.documentElement.clientWidth` is the number the layout
+  actually divides. Exactly the `100vw` trap from the Part 1 ruler, reproduced
+  in the tool built to check for it.
 
 ---
 
@@ -602,10 +655,9 @@ to draw across its images.
 
 ### Still open after Part 7c
 
-- **`templates/index.json:61` still has `"divider_opacity": 60`** for a setting
-  no longer in the `vv-hero` schema. Shopify ignores template keys with no
-  matching setting, so nothing breaks, but it is dead data — the same half-done
-  migration as Part 4a Stage C.
+- ~~**`templates/index.json:61` still has `"divider_opacity": 60`**~~ **Fixed.**
+  The key is gone — a grep of the whole repo for `divider_opacity` finds
+  nothing. Schema and template agree again.
 - **The footer and header are opaque**, so the lines stop at both ends of the
   page. `footer.liquid:30` and the header both carry `color-… gradient`. The
   same `vv-no-bg` treatment would extend the lines; whether they *should* run
@@ -616,6 +668,126 @@ to draw across its images.
   rather than now.
 - **`--vv-hairline` is currently `rgba(255, 255, 255, .8)`** — chosen quickly
   while debugging, not designed. Worth a deliberate look against the reference.
+
+---
+
+## Done — Part 7b, the product grid becomes a scroller
+
+Built 2026-08-19. **Desktop only, and the alignment is not verified** — see
+"Still open after Part 7b" before trusting any of it.
+
+### Turning it on cost two booleans
+
+`enable_desktop_slider` and `swipe_on_mobile` are both `true` in
+`templates/index.json`. Nothing else was needed to get a scroller. The Liquid
+gates at `featured-collection.liquid:78-91` only require
+`products_to_display > columns` — 8 against 4 — and they pick the
+`slider slider--desktop` classes on the `<ul>`; `component-slider.css` does the
+rest. The settings are inert data, exactly like the `data-cols-*` attributes:
+Liquid chooses classes, CSS responds to the viewport.
+
+Everything after that was undoing Dawn's assumption that a slider lives inside
+a 1200px container.
+
+### Four scoped overrides, all the same move
+
+In the section's `{%- style -%}` block. Each one shadows a custom property Dawn
+already parameterised rather than rewriting the rules that read it — the same
+technique as the `--grid-*-spacing` overrides in Parts 2–3.
+
+| Rule | What it undoes |
+| --- | --- |
+| `slider-component { --desktop-margin-left-first-item: 0px }` | Dawn indents the first slide by `max(5rem, (100vw - page-width + 10rem - gutter) / 2)`, so a full-bleed slider *starts* where a contained one would. At 1920px that was 410px — and it narrowed every column too, because the widths are `calc((100% - that) / 4 - …)`. |
+| `.slider { scroll-snap-type: x proximity }` | `mandatory` cannot be scrolled by less than half a column: it drags every small scroll straight back to where it started, so the row looked completely stuck. |
+| `.slider-buttons { --color-foreground: 255, 255, 255 }` | The arrows and the `n / total` counter were `#121212` on the near-black shell — rendered, laid out, invisible. The same 7c consequence as the dark text and dark hairlines, noticed later because nobody looks for controls that were never visible. |
+| `.slider--desktop::after { padding-left: 0 }` | The trailing twin of the first: a 5rem pad on the end of the track whose `margin-left: calc(-1 * var(--grid-desktop-horizontal-spacing))` clawback resolves to zero now the gutter does. It held the last four columns 50px left of the hairlines at maximum scroll. |
+
+Measured at 1920px, before and after: first item at `410` → `0`; item width
+`373.75` → `476.25`, which is exactly `documentElement.clientWidth / 4`.
+
+**Why the `--color-foreground` override is scoped to `.slider-buttons` and not
+the section.** The product titles and prices read the same variable and are
+still dark on the shell. Widening that scope would fix them by accident and
+pre-empt 7d, which moves and restyles them deliberately.
+
+### The wheel handler
+
+`sections/featured-collection.liquid:274-401`, an IIFE at the top level of the
+file. Requested because Shift+wheel is the only native way to drive a horizontal
+track and nobody discovers it.
+
+What it does, in order, on every `wheel` event:
+
+1. **Bails if `prefers-reduced-motion: reduce`.** Scroll hijacking is a motion
+   effect; the arrows still work.
+2. **Bails unless the row overlaps the middle half of the viewport.** The
+   listener is on `window` — the request was that pointer position not matter —
+   so without this gate a section below the fold would swallow page scrolling
+   from the top of the document and you could never reach it.
+3. **Normalises `deltaMode`.** Chrome reports pixels (`mode 0`, ~100 a notch),
+   Firefox reports lines (`mode 1`, ~3 a notch). Unscaled, Firefox would scroll
+   three pixels per notch and look broken rather than mis-tuned.
+4. **Passes the event through, untouched, when the row has no room left in that
+   direction** — no `preventDefault`, no scroll. This is what stops the section
+   trapping the page. Both ends are tested separately, each paired with its own
+   sign of delta; a single combined condition silently loses the left end.
+5. **Accumulates into a `target`** and eases toward it at 14% of the remaining
+   distance per `requestAnimationFrame`. Ticks queue against the target rather
+   than the live `scrollLeft`, so fast wheeling is not dropped mid-animation.
+6. **Suspends snapping for the duration of the gesture**, then 120ms after the
+   last tick rounds the target to a whole number of columns and glides there.
+
+**Point 6 is the part that matters and the part that is unverified.** Snapping
+is done in JS rather than left to `scroll-snap-type: proximity` because
+proximity only settles when it happens to land inside its own
+implementation-defined threshold, which left the columns a few pixels off the
+hairlines. The pitch is measured live from the first two items with
+`getBoundingClientRect()`, so it follows the breakpoint without knowing the
+column count.
+
+**Two things that fight this loop and are handled, not removed:**
+
+- `scroll-behavior: smooth` on the track is what makes Dawn's arrow buttons
+  glide (`global.js:821` calls `scrollTo({ left })` with no `behavior`, which
+  defers to the CSS). The rAF loop therefore passes `behavior: 'instant'` on
+  every frame — opting one caller out instead of flattening the property and
+  silently turning both arrows into hard jumps.
+- `scroll-snap-type` is set to `none` inline during a gesture and restored by
+  clearing the inline value, which lets the stylesheet apply again. Snapping is
+  handed back only once no settle is still pending, or the stylesheet would
+  animate against the settle.
+
+**Tuning knobs**, all named constants at the top of the IIFE: `EASING` (0.14),
+`LINE_HEIGHT` (33), `SETTLE_DELAY` (120).
+
+### Still open after Part 7b
+
+- **UNVERIFIED: do the columns actually rest on the hairlines?** This is the
+  branch's entire premise and it has not been confirmed since the JS settling
+  replaced the CSS snapping. Check at rest, at several scroll positions, and
+  specifically at the far-right end. The far right is only a valid column
+  position if the `::after` pad is genuinely gone — confirm `scrollWidth` equals
+  `itemWidth × 8` and that `(scrollWidth - clientWidth) / itemWidth` is a whole
+  number. If it is not, the settle clamps to a limit that is not on the grid and
+  the last screen will always be off.
+- **Tablet and mobile are not aligned at all.** The `grid--peek` path has the
+  same leading/trailing inset pair as desktop did, plus a column width that
+  ignores the column count entirely: `base.css:1066` (`min-width: 35%`),
+  `:1070` (a `1.5rem` first-item margin) and `:1075` (the peek `:after`). The
+  35% is Dawn deliberately showing a sliver of the next card, which is a
+  different design from ours. Measured at a 194px viewport: first item at 15px,
+  item width 62.64 — both exactly those two rules.
+- **The wheel handler pauses the page** at the section until the row is
+  exhausted. Inherent to the pattern, and more noticeable now the listener is on
+  `window`. Accepted, not yet judged against a real page length.
+- **The horizontal row rules survived after all.** `box-shadow: 0 -1px 0
+  var(--vv-rule-color)` on `.grid__item` is still there, now drawing along a
+  single scrolling row rather than between rows. Part 7c predicted this would
+  need deciding here; it was not decided.
+- **The arrows are legible but not designed.** White at Dawn's alpha ramp,
+  chosen to be visible. They sit next to `--vv-hairline`, which the doc already
+  flags as chosen quickly — the two now share a background and should be looked
+  at together.
 
 ---
 
@@ -719,7 +891,10 @@ Supersedes the Part 6 decision either way: aligning the heading to the grid's
 outer edge by dropping `page-width` is moot if it is removed, and insufficient
 if it is rebuilt.
 
-**7b — the scroller. Dawn already ships it, switched off.**
+**7b — the scroller. DONE — see "Done — Part 7b" above.** The plan below is
+left as written for the record; both gaps it flags at the end (no `infinite`,
+and arrows needing deliberate styling) are still gaps.
+
 `enable_desktop_slider` and `swipe_on_mobile` are both `false` in
 `templates/index.json`. Turning them on gives `.slider--desktop` with
 `overflow-x: auto`, `scroll-snap-type: x mandatory` and `scroll-behavior:
@@ -771,7 +946,9 @@ column edge while the text clears the line, which is what the reference does.
 - ~~Hairlines continuous down the whole page~~ — **done in 7c**, with the
   caveat that they stop at the header and footer, which are still opaque, and
   are interrupted by product images by design
-- One product row, full width, scrolling horizontally, no scrollbar on `<body>`
+- ~~One product row, full width, scrolling horizontally, no scrollbar on
+  `<body>`~~ — **done in 7b at desktop only.** Tablet and mobile scroll but
+  do not align, and whether the columns rest on the hairlines is unverified
 - Whatever was decided in 7a, aligned to the same lines as everything else
 - Product names clear of the hairlines; images still flush
 - The hero still lines up with the overlay columns
