@@ -14,10 +14,11 @@ scroller, so removing that coupling had to come first. **7a is settled: the
 heading gets rebuilt on the grid** — title in one cell, "View all" in another —
 not removed. That supersedes both the original request and the Part 6 decision.
 
-**7b is built but not verified** — the product grid is a horizontal scroller
-now, driven by a custom wheel handler. See "Done — Part 7b". The one thing
-still unconfirmed is the thing this whole branch is about: whether the columns
-come to rest exactly on the hairlines. Read "Where we are" first.
+**7b is done and verified** — the product grid is a horizontal scroller now,
+driven by a custom wheel handler, and the columns come to rest on the hairlines
+at every position tested. That was the thing this whole branch is about. The
+settling was wrong when first written and is fixed; see "Verified — Part 7b
+alignment" for the readings and "Things learned the hard way" for the cause.
 
 **Next is 7d, then 7a.** A design decision added 2026-08-19 reaches across
 both: the section title, the "View all" action, the product names *and* the
@@ -82,6 +83,7 @@ Branch `consistent-grid`. Commits so far:
 | `a552663a` | hairlines become a page-wide overlay — **Part 7c** |
 | `10683765` | record the Part 7c commit hash |
 | `79eb7f8f` | featured collection becomes a scroller — **Part 7b**, desktop only |
+| `TBD` | scroll settling lands on whole pixels — **Part 7b fix** |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
@@ -348,6 +350,17 @@ As of `4e391e27`, with the grid work complete.
   has to be listed in `.prettierrc.json`'s `plugins` array or you get
   "No parser could be inferred". Now installed and wired up; `node_modules` is
   gitignored. Always pass a path — a bare `--write .` reformats all of Dawn.
+- **`scrollLeft` is quantized to whole pixels.** Writing `944.5` reads back
+  `945`. Any easing loop that steps by a *fraction* of the remaining distance
+  therefore stalls once that fraction drops below 1px: the write becomes a
+  no-op, the position never changes, and a `< 0.5` exit condition is never met,
+  so the `requestAnimationFrame` loop spins forever on a scroll that cannot
+  move. It fails silently — nothing throws, the row just rests a few pixels
+  short. The stall threshold falls out of the easing constant: progress stops
+  below `0.5 / EASING`, which at `EASING = 0.14` is ~3.57px — and the two bad
+  readings were off by 3 and 3.5. **Retuning `EASING` moves that boundary.**
+  Two rules follow: snap targets must be whole pixels, and the per-frame step
+  must be floored at one whole pixel, sign preserved.
 - **`--vv-gutter` is already taken** by `sections/vv-header.liquid:9`, where it
   means "header shell inset". Pick different names. In use so far:
   `--vv-rule-color` (featured-collection), `--vv-glass` / `--vv-glass-bg`
@@ -673,8 +686,9 @@ to draw across its images.
 
 ## Done — Part 7b, the product grid becomes a scroller
 
-Built 2026-08-19. **Desktop only, and the alignment is not verified** — see
-"Still open after Part 7b" before trusting any of it.
+Built 2026-08-19, settling fixed and alignment verified 2026-08-20.
+**Desktop only** — see "Verified — Part 7b alignment" for the readings, and
+"Still open after Part 7b" for what tablet and mobile still don't do.
 
 ### Turning it on cost two booleans
 
@@ -737,7 +751,8 @@ What it does, in order, on every `wheel` event:
 6. **Suspends snapping for the duration of the gesture**, then 120ms after the
    last tick rounds the target to a whole number of columns and glides there.
 
-**Point 6 is the part that matters and the part that is unverified.** Snapping
+**Point 6 is the part that matters.** It was also the part that was wrong —
+see "Verified — Part 7b alignment" for what it took to make it land. Snapping
 is done in JS rather than left to `scroll-snap-type: proximity` because
 proximity only settles when it happens to land inside its own
 implementation-defined threshold, which left the columns a few pixels off the
@@ -760,16 +775,58 @@ column count.
 **Tuning knobs**, all named constants at the top of the IIFE: `EASING` (0.14),
 `LINE_HEIGHT` (33), `SETTLE_DELAY` (120).
 
+### Verified — Part 7b alignment
+
+Confirmed 2026-08-20, at a 1343px viewport: pitch 335.75, 8 items,
+`scrollWidth` 2686, `maxScroll` 1343. Four readings, each exercising a
+different code path:
+
+| Reading | `scrollLeft` | What it proves |
+| --- | --- | --- |
+| At load | 0 | edges == hairlines exactly — the **layout** |
+| Far right | 1343 (= `maxScroll`) | edges == hairlines exactly — the **clamp** |
+| Mid-row, arrived from the left | 672 (= 671.5 rounded) | 0.5px uniform offset — the **rounding** |
+| Mid-row, arrived from the right | 672 | identical — the **sign** |
+
+Geometry held throughout: `pitch × count` == `scrollWidth` == 2686 and
+`maxScroll / pitch` == 4, so the full-bleed overrides are sound — no phantom
+`::after` pad, no leading inset.
+
+**The 0.5px at mid-row is expected and is not a defect.** A column boundary at
+`335.75 × 2 = 671.5` is not a position `scrollLeft` can hold, so 672 is the
+closest reachable pixel. It is uniform across every item and invisible against
+a 1px hairline. Do not reopen this on a future measurement.
+
+**What was wrong, and the fix.** Both live in the wheel handler:
+
+- `settle()` computed `Math.round(target / pitch) * pitch`, which is
+  *fractional* — 944.5 at the width it was first tested. Unreachable by
+  construction. It now rounds that result to a whole pixel.
+- `step()` moved by `diff * EASING` each frame. Below ~3.5px that step rounds
+  away to nothing and the write becomes a no-op, so `scrollLeft` never changes,
+  `diff` never shrinks, `Math.abs(diff) < 0.5` is never satisfied, and the rAF
+  loop re-queues forever. The step magnitude is now floored at one whole pixel,
+  with the sign taken from the *signed* value — `Math.sign` of an `Math.abs`
+  result is always 1, which does not stall but runs away in the wrong
+  direction, a worse failure that only shows when scrolling left.
+
+Because `target` is now an integer and `scrollLeft` always is, `diff` is a
+whole number, so `Math.abs(diff) < 0.5` means exactly `diff === 0` — the loop
+exits on arrival, and every frame strictly decreases the distance. Termination
+is provable rather than hopeful. The two fixes are coupled: flooring the step
+at 1px against a fractional target would oscillate 671 / 672 forever.
+
+The stalled loop also explains a symptom noticed separately — an inline
+`scroll-snap-type: none` still set on the track at rest. `restoreSnap()` is
+only reached inside the exit branch, so snapping was never handed back. One
+root cause, three symptoms.
+
 ### Still open after Part 7b
 
-- **UNVERIFIED: do the columns actually rest on the hairlines?** This is the
-  branch's entire premise and it has not been confirmed since the JS settling
-  replaced the CSS snapping. Check at rest, at several scroll positions, and
-  specifically at the far-right end. The far right is only a valid column
-  position if the `::after` pad is genuinely gone — confirm `scrollWidth` equals
-  `itemWidth × 8` and that `(scrollWidth - clientWidth) / itemWidth` is a whole
-  number. If it is not, the settle clamps to a limit that is not on the grid and
-  the last screen will always be off.
+- ~~UNVERIFIED: do the columns rest on the hairlines?~~ **Verified 2026-08-20
+  at desktop** — see "Verified — Part 7b alignment" above. Tablet and mobile
+  are still unmeasured and, per the next bullet, still misaligned by
+  construction.
 - **Tablet and mobile are not aligned at all.** The `grid--peek` path has the
   same leading/trailing inset pair as desktop did, plus a column width that
   ignores the column count entirely: `base.css:1066` (`min-width: 35%`),
@@ -947,8 +1004,8 @@ column edge while the text clears the line, which is what the reference does.
   caveat that they stop at the header and footer, which are still opaque, and
   are interrupted by product images by design
 - ~~One product row, full width, scrolling horizontally, no scrollbar on
-  `<body>`~~ — **done in 7b at desktop only.** Tablet and mobile scroll but
-  do not align, and whether the columns rest on the hairlines is unverified
+  `<body>`~~ — **done in 7b, and alignment verified at desktop.** Tablet and
+  mobile scroll but do not align
 - Whatever was decided in 7a, aligned to the same lines as everything else
 - Product names clear of the hairlines; images still flush
 - The hero still lines up with the overlay columns

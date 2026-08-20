@@ -336,9 +336,14 @@
         return;
       }
 
+      let scrollAmount = diff * EASING;
+      const magnitude = Math.abs(scrollAmount);
+      const direction = Math.sign(scrollAmount); 
+      scrollAmount = direction * Math.max(1, Math.round(magnitude));
+
       // behavior 'instant' per frame, so the CSS `scroll-behavior: smooth` that
       // the arrow buttons rely on cannot animate against this loop.
-      track.scrollTo({ left: current + diff * EASING, behavior: 'instant' });
+      track.scrollTo({ left: current + scrollAmount, behavior: 'instant' });
       rafId = window.requestAnimationFrame(step);
     }
 
@@ -353,6 +358,7 @@
       if (pitch > 0) {
         const limit = maxScroll();
         target = Math.min(limit, Math.max(0, Math.round(target / pitch) * pitch));
+        target = Math.round(target); // avoid fractional pixels
       }
       if (rafId !== null) return;
       if (Math.abs(track.scrollLeft - target) < 0.5) {
