@@ -93,7 +93,7 @@ Branch `consistent-grid`. Commits so far:
 | `10683765` | record the Part 7c commit hash |
 | `79eb7f8f` | featured collection becomes a scroller — **Part 7b**, desktop only |
 | `e3501c0d` | scroll settling lands on whole pixels — **Part 7b fix** |
-| `TBD` | glass tokens move to `vv-tokens.liquid`; product text moves onto the image — **token layer + Part 7d** |
+| `5438ec41` | glass tokens move to `vv-tokens.liquid`; product text moves onto the image — **token layer + Part 7d** |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
