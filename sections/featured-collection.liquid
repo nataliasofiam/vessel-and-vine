@@ -86,6 +86,63 @@
       box-shadow: 0 -1px 0 var(--vv-rule-color);
     }
 
+    {% comment %}
+    One owner for the horizontal inset
+    {% endcomment %}
+
+    #collection-{{ section.id }} .card__information {
+      --vv-text-inset: 2rem;
+      padding-left: var(--vv-text-inset);
+      padding-right: var(--vv-text-inset);
+      --color-foreground: 0, 0, 0;
+    }
+
+    {% comment %}
+    Product text rides the lower portion of the image instead of sitting below
+    it. Absolute positioning takes it out of flow, so the image becomes the only
+    thing setting the card's height, and .card-wrapper's existing position:
+    relative is the containing block.
+
+    The backing is the other half: legibility has to come from the card, not
+    from the photograph happening to be pale.
+    {% endcomment %}
+
+    #collection-{{ section.id }} .card > .card__content {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding-left: 0;
+      padding-right: 0; 
+      --vv-glass-tint: 1;
+    }
+    {% comment %}
+    The frost sits on a pseudo-element, not on .card__content itself: a mask
+    fades an element's children along with it, and the children here are the
+    title and price. Isolating the frost lets the mask fade the blur while the
+    text stays sharp.
+    {% endcomment %}
+
+    #collection-{{ section.id }} .card > .card__content::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+      -webkit-backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+      background-image: linear-gradient(to right, rgba(255, 255, 255, var(--vv-glass-tint)), rgba(255, 255, 255, 0));
+      mask-image: linear-gradient(to right, #ffffff 60%, transparent);
+      -webkit-mask-image: linear-gradient(to right, #ffffff 60%, transparent);
+    }
+
+    {% comment %}
+    Lift the title, price and badge above the pseudo-element.
+    {% endcomment %}
+
+    #collection-{{ section.id }} .card > .card__content > * {
+      position: relative;
+    }
+
+
 {%- endstyle -%}
 
 {%- liquid

@@ -22,9 +22,16 @@ Wait for me to finish and report back on each one before giving me the next.
    verbatim. I follow them as-is, no decisions to make. Explain what each new
    piece of syntax does as it appears.
 2. **Tweak.** Nearly the same move again, with small deliberate changes (a
-   different selector, breakpoint, property, variable, or section). Tell me
-   *what* to change and *why* it differs, but let me work out the *how* from
-   step 1. This is where the pattern gets tested, not just copied.
+   different selector, breakpoint, property, variable, or section). This is
+   where the pattern gets tested, not just copied.
+
+   Walk me through it as an **ordered, numbered sequence of small steps**, not
+   a paragraph of goals. For each step give me the file, where in it to work,
+   and what that step has to accomplish — and say *why* it differs from step 1.
+   Name the properties, selectors, Liquid tags or files involved when I have no
+   way to guess them. **Do not write the code**: no snippets, no fragments, no
+   fill-in-the-blank lines. The syntax and the assembly are mine to work out
+   from step 1.
 3. **Create.** An open-ended task that uses the logic just learned, with no code
    handed to me — just the goal and the constraints. I write it. Then review
    what I produced and tell me what's off and why.

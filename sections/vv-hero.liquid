@@ -19,8 +19,8 @@
       width: 100%;
       height: {{ section.settings.hero_height }}vh;
       background: {{ section.settings.fallback_color }};
-      --vv-glass: blur({{ section.settings.glass_blur }}px) saturate(1.15) brightness(1.05);
-      --vv-glass-bg: rgba(255,255,255, {{ section.settings.glass_tint | divided_by: 1000.0 }});
+      --vv-glass-blur: {{ section.settings.glass_blur }}px;
+      --vv-glass-tint: {{ section.settings.glass_tint | divided_by: 1000.0 }};
     }
 
     .vv-hero__media,
@@ -83,9 +83,9 @@
 
       {% comment %} Apply glass effect {%  endcomment %}
       .vv-hero__panel:nth-child({{  cols_mobile }}) {
-        backdrop-filter: var(--vv-glass);
-        -webkit-backdrop-filter: var(--vv-glass);
-        background: var(--vv-glass-bg);
+        backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+        -webkit-backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+        background: rgba(255, 255, 255, var(--vv-glass-tint));
       }
     }
 
@@ -104,10 +104,10 @@
 
       {% comment %} Apply glass effect {%  endcomment %}
       .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_tablet }}) {
-        backdrop-filter: var(--vv-glass);
-        -webkit-backdrop-filter: var(--vv-glass);
-        background: var(--vv-glass-bg);
-    }
+        backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+        -webkit-backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+        background: rgba(255, 255, 255, var(--vv-glass-tint));
+      }
     }
 
     {% comment %} Desktop rules {%  endcomment %}
@@ -125,9 +125,9 @@
 
       {% comment %} Apply glass effect {%  endcomment %}
       .vv-hero__panel:nth-child(1), .vv-hero__panel:nth-child({{  cols_desktop }}) {
-        backdrop-filter: var(--vv-glass);
-        -webkit-backdrop-filter: var(--vv-glass);
-        background: var(--vv-glass-bg);
+        backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+        -webkit-backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
+        background: rgba(255, 255, 255, var(--vv-glass-tint));
       }
     }
 </style>

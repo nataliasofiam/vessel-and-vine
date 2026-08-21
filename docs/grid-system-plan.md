@@ -1,12 +1,12 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **Parts 1 through 6 and 7c are committed and the grid system
-works.** The hero panels line up with the product columns at every breakpoint,
-driven by three settings; glass and distortion share one definition of "outer";
-the gutter is zeroed theme-wide. The scaffolding (ruler, empty stubs) is
-deleted. The hairlines are now one page-wide overlay in
+Handoff notes. **Parts 1 through 6, plus 7c, 7b and 7d, are committed and the
+grid system works.** The hero panels line up with the product columns at every
+breakpoint, driven by three settings; glass and distortion share one definition
+of "outer"; the gutter is zeroed theme-wide. The scaffolding (ruler, empty
+stubs) is deleted. The hairlines are one page-wide overlay in
 `snippets/vv-grid-lines.liquid`, which also owns the line colour for the whole
-theme.
+theme. Glass blur and tint now live in `snippets/vv-tokens.liquid`.
 
 **Part 7 is being built in the order 7c → 7b → 7d → 7a**, decided 2026-08-14.
 7c first because the per-item `:nth-child` hairline rules would break in 7b's
@@ -16,14 +16,23 @@ not removed. That supersedes both the original request and the Part 6 decision.
 
 **7b is done and verified** — the product grid is a horizontal scroller now,
 driven by a custom wheel handler, and the columns come to rest on the hairlines
-at every position tested. That was the thing this whole branch is about. The
-settling was wrong when first written and is fixed; see "Verified — Part 7b
-alignment" for the readings and "Things learned the hard way" for the cause.
+at every position tested. That was the thing this whole branch is about.
 
-**Next is 7d, then 7a.** A design decision added 2026-08-19 reaches across
-both: the section title, the "View all" action, the product names *and* the
-slider arrows should all sit **inside** the row, on the grid, rather than above
-and below it. 7a and 7d already cover the first three. The arrows are new work
+**7d is done** — the product title and price now sit *on* the lower portion of
+each image rather than below it, over a masked pseudo-element frost that fades
+to the right. It changed shape mid-build (the original plan indented the text
+while leaving it below the image) and it pulled a `vv-` token layer into
+existence along the way. See both "Done" sections.
+
+**Fix this first, before anything else:** the two mask declarations in
+`featured-collection.liquid` disagree — `mask-image` fades from 60% and
+`-webkit-mask-image` from 50%, so Safari renders a different card from every
+other browser. Known at commit time; see "Open after 7d".
+
+**Next is 7a**, the last piece of Part 7. A design decision added 2026-08-19
+reaches across it: the section title, the "View all" action, the product names
+*and* the slider arrows should all sit **inside** the row, on the grid, rather
+than above and below it. 7d covered the product names. The arrows are new work
 with no reference to copy — the reference puts its arrows outside the row.
 
 **Knowingly incomplete:** the footer and header are still opaque so the lines
@@ -83,7 +92,8 @@ Branch `consistent-grid`. Commits so far:
 | `a552663a` | hairlines become a page-wide overlay — **Part 7c** |
 | `10683765` | record the Part 7c commit hash |
 | `79eb7f8f` | featured collection becomes a scroller — **Part 7b**, desktop only |
-| `TBD` | scroll settling lands on whole pixels — **Part 7b fix** |
+| `e3501c0d` | scroll settling lands on whole pixels — **Part 7b fix** |
+| `TBD` | glass tokens move to `vv-tokens.liquid`; product text moves onto the image — **token layer + Part 7d** |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
 
@@ -548,6 +558,94 @@ As of `4e391e27`, with the grid work complete.
   round. `document.documentElement.clientWidth` is the number the layout
   actually divides. Exactly the `100vw` trap from the Part 1 ruler, reproduced
   in the tool built to check for it.
+- **Custom properties are not functions.** A `var()` inside a custom property is
+  substituted where that property is **declared**, and what inherits down is the
+  resolved string. So this does *not* give the card a 12px blur:
+
+  ```css
+  :root          { --blur: 4px; --glass: blur(var(--blur)) saturate(1.15); }
+  .card__content { --blur: 12px; }
+  ```
+
+  Overriding an input below the declaration is too late. The fix is to keep
+  **inputs** in the shared layer and do the **composition in a real property, on
+  the element being matched** — which is the entire reason
+  `snippets/vv-tokens.liquid` exists.
+- **Custom properties accept almost anything, and defer the consequences.** A
+  custom property's value is a token stream; validity is only checked when it is
+  substituted into a real property. So `--vv-glass-blur: 4` (no unit),
+  `--vv-glass-tint: 30 | divided_by: 1000.0` (a Liquid filter written as raw CSS
+  text) and a `var()` naming a property that does not exist are all *well-formed
+  declarations*. They parse, they show in devtools, and they fail one layer
+  later — in a different file from the one just edited. An undefined `var()`
+  makes the property "invalid at computed-value time", which computes to `unset`
+  and therefore, for a non-inherited property like `background`, to `initial`.
+- **CSS almost never tells you that you missed.** Five silent failures in one
+  session, all the same shape — something well-formed that quietly does the
+  wrong thing: an invalid unit in a custom property; a `var()` naming nothing; a
+  selector matching no element (`.card_information` for `.card__information`);
+  and colour stops in descending order, twice. None errored. **"No error" tells
+  you nothing.** The only reliable checks are the Computed tab and the technique
+  below.
+- **When a subtle effect does not appear, replace it with a grotesque one.** A
+  3% white frost that is invisible and a frost that is not rendering at all look
+  identical, and no amount of tuning distinguishes them. Swap the colour for
+  fully opaque red and reload: either a red band appears — the CSS is fine and
+  this is a visibility problem — or it does not, and the declaration is not
+  reaching the element. One reload, two completely different fixes. Make sure
+  the probe does not itself depend on the value under test: probing with
+  `rgba(255, 0, 0, var(--vv-glass-tint))` paints 3% red and proves nothing.
+- **Colour stop positions must ascend, and CSS silently clamps them if they do
+  not.** A stop positioned before its predecessor is dragged up to the
+  predecessor's position. So `linear-gradient(to right, #000 100%, transparent)`
+  puts both stops at 100%, the transition occupies zero width, and the result is
+  a flat fill with no fade at all. Same for `(tint 100%, transparent 0%)`. The
+  position is not a property of the colour: **the stop list is read in order
+  along the axis**, so reversing the colours means leaving the positions where
+  they are. With two stops, omitting both positions gives 0% and 100%, which is
+  usually what is wanted.
+- **A prefixed and unprefixed pair are one declaration for two browsers, not two
+  settings.** `mask-image` at 60% and `-webkit-mask-image` at 50% is a real
+  cross-browser bug that is invisible locally — Chrome and Firefox read the
+  first, Safari the second. Same discipline applies to `backdrop-filter`. And
+  the converse: a browser that does not recognise the prefixed alias flags it as
+  an improper value in devtools, which is expected and not worth chasing.
+- **`rgba()` alpha is 0–1, or a percentage *with* the sign.** A bare `100` is out
+  of range and clamps to `1`. It happens to give full opacity, so it looks
+  correct — but `50` also gives `1`, with no error.
+- **A mask reads only the alpha channel; colour is ignored.** So
+  `mask-image: linear-gradient(to right, #000 60%, transparent)` is fine, and
+  `#000` is convention rather than meaning. This is the exact opposite of a
+  *background* gradient, where fading to the `transparent` keyword is a trap
+  because it means transparent **black** — `rgba(0, 0, 0, 0)` — and can drag a
+  grey haze through the middle of a white fade. Fade backgrounds to the same
+  colour at zero alpha; fade masks to whatever.
+- **A positioned pseudo-element paints above non-positioned in-flow siblings.**
+  So a `::before` carrying a background covers the element's own text. The fix
+  is `position: relative` on the children, putting them in the same painting
+  group where DOM order decides — and `::before` is by definition first. The
+  tempting `z-index: -1` on the pseudo fails here: `.card__content` is positioned
+  but has `z-index: auto`, so it creates **no stacking context**, and the
+  negative index escapes the subtree entirely and slides behind the product
+  image. Also: `content: ''` is mandatory, or the pseudo-element is never
+  generated at all.
+- **Liquid and CSS are two languages in two runtimes, bridged one way only.**
+  Liquid runs on the server and emits text; CSS custom properties exist in the
+  browser afterwards. Nothing wrapped in `{{ }}` is not Liquid — it is
+  characters. And a snippet is **not a module**: `vv-tokens.glass-alpha` cannot
+  work in either language, because after rendering the browser receives one
+  document of `<style>` blocks with no memory of which file each came from. The
+  property name is the entire interface. Corollary: `section.settings.*` is
+  empty in a snippet rendered from `layout/theme.liquid`, which is why the token
+  layer holds literals and the conversion from editor units lives in whichever
+  section owns the slider.
+- **Dawn uses three near-identical class names one level apart.**
+  `.card__information` (BEM element, holds title and price), `.card-information`
+  (a different wrapper *inside* it, `card-product.liquid:165`), and
+  `.card__content` — which appears **twice** per card, once inside `.card__inner`
+  for the badges and once as a direct child of `.card` for the text. A selector
+  matching nothing is not an error, so getting one of these wrong costs a
+  debugging round with no feedback at all.
 
 ---
 
@@ -848,6 +946,177 @@ root cause, three symptoms.
 
 ---
 
+## Done — the `vv-` token layer
+
+Built 2026-08-21, in the middle of 7d and not originally planned. Prompted by
+the question "shouldn't the glass blur and tint live in a stylesheet?", which
+was the right instinct with the wrong destination.
+
+**There is no `theme.css`.** Dawn's global tokens live in a `:root` block at
+`layout/theme.liquid:126`, built from `settings.*` and defined in
+`config/settings_schema.json`. The `assets/*.css` files are **consumers only**:
+they are served as static files and no Liquid runs in them, so they can read
+`var(--x)` but can never define a value that came from a setting. That is the
+hard constraint behind the whole question — "put it in a CSS file" and "keep it
+editable in the theme editor" are mutually exclusive for the same value.
+
+**`snippets/vv-tokens.liquid`** is the new home: a `<style>`-only snippet with
+no markup, rendered from `layout/theme.liquid:329` next to `vv-grid-lines`. It
+declares `--vv-glass-blur` and `--vv-glass-tint` on `:root` as **finished CSS
+values** — `4px` and `0.03` — never editor units. Sections that expose a slider
+do their own conversion and override these names locally.
+
+### Why it holds inputs, not the composed value
+
+The old `vv-hero.liquid:22-23` baked six values into two strings: a blur radius,
+a `saturate` multiplier, a `brightness` multiplier, the white `255,255,255`, an
+alpha, and the arithmetic that produced it. Four of those six are constants;
+only the blur radius and the alpha ever varied. Sealing them into one composed
+string is what made the value unreusable — and the reason is not style, it is
+mechanics.
+
+**A `var()` inside a custom property resolves where the custom property is
+*declared*, not where it is used.** `--vv-glass` declared on `.vv-hero` was
+already substituted by the time it inherited anywhere else, so overriding an
+input further down would have done nothing at all. Custom properties are not
+functions; what inherits is a resolved string.
+
+So the composition has to happen **in a real property, on the element being
+matched**. `vv-hero` now declares the two inputs on `.vv-hero` from its settings
+and composes in each of the three `:nth-child` glass blocks (`:86-88`,
+`:107-109`, `:128-130`). The same composition is written three times; the blocks
+select different panels per breakpoint, so a utility class cannot collapse them
+without changing how the hero picks panels. Left as is.
+
+`vv-hero`'s two schema settings at `:563` and `:573` are untouched — the hero
+keeps its theme-editor controls, they just feed shared names now.
+
+### What was deliberately not done
+
+- **A `.vv-glass` utility class.** It would need the class in markup, and the
+  only place to add it is `snippets/card-product.liquid:148`, which *every*
+  product card in the theme renders. Wrong blast radius for a section-scoped
+  design. Each consumer composes in its own scoped rules instead — which is also
+  how Dawn works, `theme.liquid` defining `--media-*` and the `component-*.css`
+  files composing them.
+- **Real theme settings in `settings_schema.json`.** More "correct" Shopify, and
+  it would give merchant-facing controls, but there is no need for merchant
+  control of glass yet.
+- **Migrating `--vv-hairline` and `--vv-text-inset`.** Both still live where they
+  were — `vv-grid-lines.liquid:15` and inside a rule in
+  `featured-collection.liquid`. They belong in the token layer; left alone so the
+  step stayed one idea.
+
+### Open
+
+- **`glass_tint`'s schema is a 0–100 slider divided by 1000**, so its full range
+  only reaches 10% opacity and the top three-quarters of the control are nearly
+  indistinguishable. Pre-existing; preserved exactly, because this was a pure
+  refactor. Worth revisiting now the cards read the same token.
+
+---
+
+## Done — Part 7d, the product text moves onto the image
+
+Built 2026-08-21. **Changed shape mid-build**: the original plan was to indent
+the text block so it cleared the hairlines while sitting *below* the image. The
+request became "bring the descriptions inside the cards, in the lower portion of
+the product images", which is a different structural problem — the text has to
+leave normal flow.
+
+### What exists now
+
+Four rules in `featured-collection.liquid`'s style block, all scoped with
+`#collection-{{ section.id }}`:
+
+| Rule | What it does |
+| --- | --- |
+| `.card__information` | `--vv-text-inset: 2rem` as horizontal padding, and `--color-foreground: 0, 0, 0` |
+| `.card > .card__content` | `position: absolute`, pinned bottom/left/right, horizontal padding zeroed, `--vv-glass-tint: 1` |
+| `.card > .card__content::before` | the frost — `backdrop-filter`, a white background gradient, and a mask |
+| `.card > .card__content > *` | `position: relative`, to lift the text above the frost |
+
+**The child combinator matters.** `card-product.liquid` has **two**
+`.card__content` elements: one inside `.card__inner` holding the badges
+(`:111`), one a direct child of `.card` holding the title and price (`:148`).
+They share a class and only their depth tells them apart.
+
+**Why the text lands on the image.** Absolute positioning takes
+`.card__content` out of flow, so it stops contributing height. `.card` is a flex
+column whose only remaining in-flow child is `.card__inner` — the image box — so
+the card's height collapses to the image height and `bottom: 0` is the bottom
+edge of the photograph. `.card-wrapper` was already `position: relative`
+(`component-card.css:1`), so the containing block came for free.
+
+**The text is black, not white.** Chosen deliberately: 7c established that this
+catalogue's photographs are near-white, which is why the hairlines are
+interrupted by images. Black is the value that agrees with that finding. It is
+right *contingently* — one dark product shot breaks it — which is what the frost
+exists to fix.
+
+### The frost, and why it took four attempts
+
+A flat 3% white tint looked fine and did nothing. Over near-white photographs a
+white wash is invisible at *any* alpha, so "looks good" and "works" were not the
+same thing, and neither 0.03 nor 1.0 could be judged against the live catalogue.
+The dark case is the only test that discriminates — `filter: brightness(0.2)` on
+one card's `.card__media` in devtools.
+
+The fade is **horizontal**, opaque at the left, because
+`config/settings_data.json:105` sets `card_text_alignment: "left"`, so the text
+really does live on the left of the card.
+
+**Why the frost sits on a `::before` and not on `.card__content` itself.**
+`backdrop-filter` applies uniformly across an element's whole box and is
+completely independent of `background-image`, so fading the background does not
+fade the blur — the fade dies onto a floor of blurred, 5%-brightened backdrop
+with a hard edge on all four sides. The only thing that fades a backdrop filter
+is `mask-image`, which fades the element's **entire rendering, children
+included** — and the children here are the title and price. Isolating the frost
+on a pseudo-element lets the mask fade the blur while the text stays sharp.
+
+**The ordering fix is `position: relative` on the children, not `z-index: -1` on
+the pseudo.** A positioned pseudo-element paints above non-positioned in-flow
+content, so the frost would cover the title. Making the children positioned puts
+them in the same painting group, where DOM order decides, and `::before` is by
+definition first. The obvious alternative fails: `.card__content` is positioned
+but has `z-index: auto`, so it creates **no stacking context**, and a negative
+`z-index` would escape the subtree entirely and slide behind the product image.
+
+`> *` catches both children — `.card__information` and the `.card__badge` at
+`card-product.liquid:553`.
+
+### Open after 7d
+
+- **The two masks disagree.** `mask-image` fades from 60%, `-webkit-mask-image`
+  from 50%. Chrome and Firefox read the first, Safari the second. A prefixed and
+  unprefixed pair are the same declaration for different browsers, not two
+  settings — they have to carry the same value. **Known at commit time; fix this
+  first.**
+- **Two fades multiply.** The background gradient fades across the full width
+  *and* the mask fades from 60%, so the effective opacity is the product of the
+  two and falls off much faster than either suggests — at 60% across, the
+  background is already down to 0.4. Tuning either number moves the result
+  non-linearly. The fix, if tuning gets frustrating, is to flatten the background
+  to a solid tint and let the mask own the shape.
+- **`--vv-glass-tint: 1`** — fully opaque white at the left edge, which erases
+  that part of every photograph. It is the strongest possible setting, so there
+  is no headroom if the dark case needs more.
+- **Title length versus a fixed fade point.** A vertical fade would be uniform
+  along the axis the text varies in; a horizontal one is not. The fade sits at a
+  fixed fraction of the card's width and titles run to whatever length they run
+  to, so a long title's tail crosses into the transparent end — and it will be
+  the longest product name, the one never tested with, that breaks first. Three
+  ways out, none taken: push the fade point past the longest title (fragile),
+  hold full opacity across most of the width (then it is a flat fill with a soft
+  edge), or put a `max-width` on the text block so titles wrap before they reach
+  the fade.
+- **The horizontal row rules are still undecided.** `box-shadow: 0 -1px 0
+  var(--vv-rule-color)` on `.grid__item` survives from Parts 2–3. 7c predicted 7b
+  would decide it; 7b did not; neither did 7d. There is one row now.
+
+---
+
 ## Next: Part 7 — featured collection as a full-width scroller
 
 Three changes requested 2026-08-12, moving `featured-collection` toward the
@@ -988,6 +1257,13 @@ Consequence to check: an overlay sits behind everything, so it will show
 through any section that does not paint its own background, not just this one.
 That is the intent, but look at the hero and the footer before committing.
 
+**7d — indent the item names. DONE — see "Done — Part 7d" above**, though the
+approach changed mid-build: the text moved *onto* the image rather than staying
+below it, so the indent stopped being the point. The structural advice below
+still held — padding goes on the text wrapper, never on `.grid__item` — and
+`.card__information` was indeed the right element. The plan is left as written
+for the record.
+
 **7d — indent the item names.** Not on `.grid__item`: Dawn's items are
 content-box, so horizontal padding adds to the percentage width and wraps the
 row. That is why the existing padding is `2rem 0`, vertical-only, and it is
@@ -1007,7 +1283,11 @@ column edge while the text clears the line, which is what the reference does.
   `<body>`~~ — **done in 7b, and alignment verified at desktop.** Tablet and
   mobile scroll but do not align
 - Whatever was decided in 7a, aligned to the same lines as everything else
-- Product names clear of the hairlines; images still flush
+- ~~Product names clear of the hairlines; images still flush~~ — **superseded
+  by 7d.** The names moved onto the images, so "clear of the hairlines" no
+  longer describes the goal. The image is still flush to the column edge; the
+  text is inset `--vv-text-inset` from it and backed by the frost. The
+  dark-image case is the outstanding acceptance test
 - The hero still lines up with the overlay columns
 
 ---

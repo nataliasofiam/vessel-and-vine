@@ -62,8 +62,6 @@
         "mouse_radius": 80,
         "glass_strength": 28,
         "ease": 10,
-        "glass_blur": 4,
-        "glass_tint": 30, 
         "cols_mobile": 2, 
         "cols_tablet": 3, 
         "cols_desktop": 4
