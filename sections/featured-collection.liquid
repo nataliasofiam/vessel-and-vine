@@ -185,20 +185,30 @@
       left: 0;
       right: 0;
       padding-left: 0;
-      padding-right: 0; 
+      padding-right: 0;
       --vv-glass-tint: 1;
+      isolation: isolate;
     }
     {% comment %}
     The frost sits on a pseudo-element, not on .card__content itself: a mask
     fades an element's children along with it, and the children here are the
     title and price. Isolating the frost lets the mask fade the blur while the
     text stays sharp.
+
+    z-index: -1 puts it behind the title, price and badge without those needing
+    to be positioned themselves. 7d rejected this because .card__content had
+    z-index: auto and so created no stacking context, which let -1 escape the
+    subtree and slide behind the product image. `isolation: isolate` above
+    creates that context without touching position or z-index, so -1 is now
+    clamped to the bottom of .card__content's own layer -- still above the
+    image, because .card__content as a whole paints above .card__inner.
     {% endcomment %}
 
     #collection-{{ section.id }} .card > .card__content::before {
       content: '';
       position: absolute;
       inset: 0;
+      z-index: -1;
       backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
       -webkit-backdrop-filter: blur(var(--vv-glass-blur)) saturate(1.15) brightness(1.05);
       background-image: linear-gradient(to right, rgba(255, 255, 255, var(--vv-glass-tint)), rgba(255, 255, 255, 0));
@@ -207,11 +217,28 @@
     }
 
     {% comment %}
-    Lift the title, price and badge above the pseudo-element.
+    Give the card its link back.
+
+    Dawn makes a whole card clickable with .card__heading a::after -- an empty
+    absolutely positioned box with inset: 0, which fills its nearest positioned
+    ancestor. That is meant to be .card-wrapper. 7d put .card__content (absolute)
+    in between, so the link shrank to the strip of text over the image and the
+    photograph stopped responding to clicks.
+
+    padding-top rather than height or a negative top: a percentage in top or
+    height resolves against the containing block's HEIGHT, which here is only
+    the text band. A percentage in padding always resolves against its WIDTH --
+    vertical padding included. .card__content is pinned left: 0 / right: 0, so
+    its width is the card's width, and the card's height is exactly
+    --ratio-percent of that width. That is the same variable Dawn sets inline on
+    .card and .card__inner from the image_ratio setting
+    (snippets/card-product.liquid:56), so the overlay comes out exactly one card
+    tall with no magic number, and re-derives itself if the ratio ever changes.
     {% endcomment %}
 
-    #collection-{{ section.id }} .card > .card__content > * {
-      position: relative;
+    #collection-{{ section.id }} .card__heading a::after {
+      top: auto;
+      padding-top: var(--ratio-percent);
     }
 
 {%- endstyle -%}

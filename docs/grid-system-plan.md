@@ -14,10 +14,14 @@ whose columns rest on the hairlines at desktop, and the section title, both
 slider arrows and the "View all" action all sit *inside* the row rather than
 above and below it.
 
-**Next is tablet and mobile snapping** — the one part of the grid that has
-never worked. Below 990px the columns do not line up with the overlay at all,
-and not by accident: three Dawn rules describe a different design. See "Next —
-tablet and mobile snapping".
+**Tablet and mobile snapping is done too**, in `8736b97a` — the last part of
+the grid that had never worked. All three breakpoints now rest on the
+hairlines. See "Done — tablet and mobile snapping".
+
+**There is no next part queued.** What remains are the loose ends listed under
+"Still open after Part 7a": the header and footer are still opaque so the lines
+stop at both ends of the page, the horizontal row rules have never been
+decided, and the arrows are legible but not designed.
 
 **Two corrections to earlier notes in this file:**
 
@@ -91,7 +95,8 @@ Branch `consistent-grid`. Commits so far:
 | `e3501c0d` | scroll settling lands on whole pixels — **Part 7b fix** |
 | `5438ec41` | glass tokens move to `vv-tokens.liquid`; product text moves onto the image — **token layer + Part 7d** |
 | `483cb9da` | record the token layer and Part 7d commit hash |
-| *uncommitted* | title, arrows and "View all" move into the row — **Part 7a**. Record the hash here once committed |
+| `8736b97a` | title, arrows and "View all" move into the row — **Part 7a** — plus tablet and mobile snapping |
+| *uncommitted* | the card is a link again — **Stage F**, undoing 7d's shrunken hit area. Record the hash here once committed |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 and all of Part 7 are
 complete.**
@@ -1134,7 +1139,12 @@ Four overlays on one row, all scoped with `#collection-{{ section.id }}`:
 | `.collection__title` | top-left, `z-index: 1` | `--vv-text-inset` on top and left |
 | `.slider-buttons` | stretched to all four edges of the row, `pointer-events: none` | none |
 | `.slider-button` | pushed to both ends by `justify-content: space-between`, `pointer-events: auto` | flush |
-| `.collection__view-all` | bottom-right, no `z-index` | `8px` |
+| `.collection__view-all` | bottom-right, no `z-index` | `--vv-text-inset` on bottom and right |
+
+`title` is blank in `templates/index.json`, so this section renders no heading
+today and the wrapper is not emitted at all — see "Done — the heading became a
+per-section setting". The rule stays because the next product block planned for
+the landing page will have one.
 
 `.slider-counter` — Dawn's `n / total` readout — is `display: none`. Safe to
 hide or delete outright: `assets/global.js:774` guards its updates with a null
@@ -1253,19 +1263,15 @@ Two consequences, both accepted deliberately:
 
 ### Still open after Part 7a
 
-- **Tablet and mobile do not align.** Unchanged since 7b, and now the next
-  piece of work. See below.
-- **The three insets disagree.** Title 20px, "View all" a hardcoded 8px, arrows
-  0. Three overlays on one grid, three numbers, in a theme whose rem is 10px
-  and which has a token for exactly this. Any of them could be right; none of
-  them was decided.
-- **7d shrank the clickable area of every card.** `.card__heading a::after`
-  (`assets/component-card.css:352-358`) is `position: absolute` with `inset: 0`
-  and is meant to resolve against `.card-wrapper`, making the whole card a link
-  target. 7d gave `.card > .card__content > *` `position: relative`, and
-  `.card__information` matches it — so the overlay now resolves against the
-  text block, and only the text strip is clickable, not the photograph. Found
-  while checking a `z-index` during 7a; not investigated or fixed.
+- ~~Tablet and mobile do not align.~~ **Done in `8736b97a`** — see "Done —
+  tablet and mobile snapping" below.
+- ~~The three insets disagree.~~ **Settled.** The title and "View all" both read
+  `--vv-text-inset`; the arrows stay flush at 0, which is a deliberate design
+  call rather than an oversight. Note there is no hairline at either extreme
+  edge for them to sit on: the overlay draws left borders on spans 2–4 only
+  (`snippets/vv-grid-lines.liquid:29-31`).
+- ~~7d shrank the clickable area of every card.~~ **Fixed in Stage F** — see
+  "Done — Stage F" below.
 - **The caret size is capped by its wrapper.** `.slider-buttons .icon` is set to
   `1.5rem`, but `.svg-wrapper` is 20px wide (`assets/base.css:652-658`) and the
   glyph's `viewBox` is `0 0 10 6`, so `preserveAspectRatio` scales it to 20 × 12
@@ -1279,40 +1285,160 @@ Two consequences, both accepted deliberately:
 
 ---
 
-## Next — tablet and mobile snapping
+## Done — tablet and mobile snapping
 
-The one part of the grid that has never worked. Desktop columns rest on the
-hairlines exactly, verified in 7b. Below 990px they do not line up at all, and
-not by accident: three Dawn rules describe a different design.
+Built 2026-08-28, committed in `8736b97a`. The last part of the grid that had
+never worked. Desktop columns had rested on the hairlines since 7b; below 990px
+they did not line up at all, and not by accident — three Dawn rules describe a
+different design.
 
-**What is in the way**, all in `assets/base.css` under the `grid--peek` path:
+**`grid--peek` stays.** The first decision was whether to keep it at all:
+turning `swipe_on_mobile` off would drop back to a *wrapping* grid at 3 and 2
+columns, which lands on the hairlines for free because the gutter is zero, and
+would have been less work. It was rejected because **7a's four overlays all
+assume a single row** — arrows vertically centred on one band, a title at its
+top-left, an action at its bottom-right. Across four wrapped rows of eight
+products the arrows are meaningless and "View all" lands under the last row.
+The affordance the peek sliver used to provide is now carried by the arrows,
+which render at every width.
 
-- `:1066` — `min-width: 35%` on the item. Dawn is deliberately showing a sliver
-  of the next card; that is the "peek" the class is named for, and it ignores
-  the column count entirely.
-- `:1070` — a `1.5rem` left margin on the first item.
-- `:1075` — the trailing `:after` pad.
+**Four overrides per breakpoint, the same quartet 7b used at desktop:**
 
-Measured at a 194px viewport during 7b: first item at 15px, item width 62.64 —
-both exactly those two rules, not a rounding artefact.
+| | Tablet (750-989) | Mobile (≤749) |
+| --- | --- | --- |
+| Item width | `base.css:1099-1101` — `33.33% - 3rem` | `base.css:1083-1086` — `50% - 3rem` |
+| Leading inset | `base.css:1109-1111` — `margin-left: 1.5rem` | `base.css:1070-1072` — same |
+| Trailing pad | `component-slider.css:98-102` — `padding-left: 1.5rem` | same rule |
+| Snap origin | `component-slider.css:92` — `scroll-padding-left: 1.5rem` | same rule |
 
-**The desktop fix is the model.** 7b solved the same three problems at ≥990 with
-four scoped overrides: `--desktop-margin-left-first-item: 0px`, zeroing
-`.slider--desktop::after`'s padding, and the two width calcs. The tablet and
-mobile paths need the same treatment aimed at `grid--peek`'s numbers instead.
+That `3rem` is the peek itself: Dawn subtracting 30px from every column so a
+sliver of the next card shows. `min-width: 35%` at `base.css:1066-1068` needed
+no override — once the width is a clean 50%, the floor never binds.
 
-**Decide before starting: keep `grid--peek` at all?** `swipe_on_mobile` is
-`true` in `templates/index.json`, which switches on a design — the peek sliver
-— that this grid does not want. Turning it off changes which Dawn rules apply
-and may be less work than overriding each of them one by one; it also gives up
-the affordance that tells a mobile visitor the row scrolls. That trade is the
-first decision, not an implementation detail.
+**`scroll-padding-left` is the one that decides where a snap lands**, not where
+the columns sit at rest. Left alone it settles every column exactly 15px off
+its hairline, which looks like a width bug and is not one.
 
-**Also unresolved at these widths:** the section renders `slider--tablet` at
-*all* widths — the markup applies it whenever `show_mobile_slider` is true —
-and `slider--desktop` above 990. Several of the rules fixed in 7a turned out to
-be breakpoint-specific for exactly this reason. Expect the same shape of
-surprise here.
+### The snapping bug, and why it was invisible at desktop
+
+The row would not snap on touch at all. Two causes, stacked.
+
+**1. `scroll-snap-type: mandatory` without an axis is invalid.** The grammar is
+`none | [ x | y | block | inline | both ] [ mandatory | proximity ]?` — the axis
+is required whenever a strictness keyword is given. The declaration was dropped
+entirely, with a warning in devtools.
+
+**2. A media query adds nothing to specificity.** Even written correctly, a
+tablet-scoped rule would have lost to the unguarded
+`#collection-… .slider { scroll-snap-type: x proximity }` further down the same
+style block: equal specificity, later in source, so it wins wherever it
+matches. **A media query is a condition on whether a rule applies, not a
+weight.** The fix was to guard the *proximity* rule with
+`@media (min-width: 990px)` rather than to add a competing rule below it, which
+leaves Dawn's own `x mandatory` on `.slider--tablet` simply never overridden.
+
+**Why `proximity` was there at all** is recorded in "The wheel handler": on
+desktop the *JavaScript* does the snapping, rounding the target to a whole
+number of columns 120ms after the last tick, and `proximity` was deliberately
+chosen so the CSS would not fight it. But that handler binds `wheel` and
+nothing else (`sections/featured-collection.liquid:476`). **Touch drag emits no
+wheel event**, so below 990 the JS never runs — the CSS had been turned down to
+its weak mode with nothing left in charge of the strong one.
+
+### Open
+
+- **The gutter arithmetic in the mobile width override is the three-column
+  share** (`* 2 / 3`) copied from the tablet rule, and it reads the desktop
+  spacing variable rather than `--grid-mobile-horizontal-spacing`. Both resolve
+  to `0` today so nothing is visibly wrong — but the gutter is a theme setting,
+  and this one rule would silently mis-size if it ever moved off zero while the
+  other three stayed correct.
+- **The two breakpoint blocks are 25 lines apart** in the style block, with the
+  section padding rules and an unrelated comment between them. They do the same
+  job and should read as a pair.
+- **The `.slider--tablet:after` override has no comment**, though it sits beside
+  the `.slider--desktop::after` one, whose comment describes only the desktop
+  half.
+
+---
+
+## Done — Stage F, the card is a link again
+
+Built 2026-08-28. Not planned; it fixes a regression 7d introduced and 7a found.
+
+**The symptom** was product cards that could not be clicked at tablet and
+mobile. It was never breakpoint-specific: clicking the *title text* worked at
+every width, and clicking the photograph worked at none. It read as a
+tablet/mobile bug only because at desktop the text strip is a comfortable
+target and at mobile the cards are half as wide.
+
+**The cause.** Dawn makes a whole card clickable with `.card__heading a::after`
+(`assets/component-card.css:352-358`) — an empty absolutely positioned box with
+`inset: 0`, which fills its **nearest positioned ancestor**. That is meant to be
+`.card-wrapper`. 7d put `.card__content` (absolute) and, via its blanket
+`> *` rule, `.card__information` (relative) in between, so the link shrank to
+the strip of text over the image.
+
+**Deleting the `> *` rule alone does not fix it.** The overlay would then
+resolve against `.card__content`, which is still only the bottom band — and it
+would undo 7d's painting order, putting the frost back over the title. Three
+coordinated moves were needed:
+
+1. **`isolation: isolate` on `.card > .card__content`.** 7d rejected a negative
+   `z-index` on the frost because `.card__content` had `z-index: auto` and
+   created no stacking context, so `-1` escaped the subtree and slid behind the
+   product image. `isolation: isolate` creates that context without touching
+   position or z-index — it exists for exactly this — which removes the reason
+   the objection held.
+2. **`z-index: -1` on the frost `::before`, and the `> *` rule deleted.** With
+   the context in place, `-1` is clamped to the bottom of `.card__content`'s own
+   layer, still above the image because `.card__content` as a whole paints above
+   `.card__inner`. The children no longer need `position: relative`, so
+   `.card__information` stops being a containing block.
+3. **`top: auto` and `padding-top: var(--ratio-percent)` on
+   `.card__heading a::after`.** This is the interesting one. A percentage in
+   `top` or `height` resolves against the containing block's **height** — here
+   the text band, which says nothing about the card. A percentage in `padding`
+   always resolves against its **width**, vertical padding included.
+   `.card__content` is pinned `left: 0 / right: 0`, so its width is the card's
+   width, and the card's height is exactly `--ratio-percent` of that width —
+   the same variable Dawn sets inline on `.card` and `.card__inner` from
+   `image_ratio` (`snippets/card-product.liquid:56`). The overlay therefore
+   comes out exactly one card tall, anchored at the bottom, with no magic
+   number, and re-derives itself if the ratio setting ever changes.
+
+**Verified:** photograph, title and price all clickable at all three widths;
+frost still behind the text; badge still legible; arrows and "View all" still
+reachable above the enlarged overlay.
+
+**If the badge ever needs lifting again**, give `.card__badge` its own
+`position: relative` — not a blanket `> *`, which is what caused this.
+
+---
+
+## Done — the heading became a per-section setting
+
+Built 2026-08-28. The title was first hidden with `display: none` in the
+section's style block, with the intent of keeping the positioning rule
+available for the other product blocks planned for the landing page.
+
+**That does the opposite of what it looks like.** The `{% style %}` block lives
+in the section file, so **every instance of `featured-collection` renders its
+own copy of it**, scoped to its own `section.id`. A CSS rule hiding the title
+therefore hides it on *all* of them. Reuse is automatic and needs no dead CSS
+preserved for it; what varies per instance is the *settings*.
+
+So `title` is blank in `templates/index.json` instead, and the client turns the
+heading on by typing one into the theme editor. The positioning rule stays and
+simply has nothing to position until a title exists.
+
+**One markup change went with it.** The wrapper `<div class="collection__title
+…">` rendered unconditionally — only the `<h2>` inside it was gated — so a blank
+title left an empty absolutely positioned box, 20px square from its own padding,
+carrying `z-index: 1` over the corner of the first card. Invisible, but still a
+hit target. A `show_collection_heading` boolean in the `{%- liquid -%}` block
+now gates the wrapper, mirroring the two conditions inside it (the title, and
+the description's own two-way test).
 
 ---
 
