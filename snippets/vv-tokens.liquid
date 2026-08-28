@@ -1,8 +1,8 @@
 {% comment %}
   Vessel and Vine design tokens.
 
-  Owns the glass surface for the whole theme: the blur radius and the white
-  tint alpha. Values here are finished CSS, never editor units. Sections that
+  Owns the glass surface for the whole theme (the blur radius and the white
+  tint alpha) and the horizontal text inset. Values here are finished CSS, never editor units. Sections that
   expose a slider do their own conversion and override these names locally.
   The composition into backdrop-filter / background happens at each point of
   use, never here.
@@ -12,5 +12,6 @@
   :root {
     --vv-glass-blur: 4px;
     --vv-glass-tint: 0.03;
+    --vv-text-inset: 2rem; 
   }
 </style>

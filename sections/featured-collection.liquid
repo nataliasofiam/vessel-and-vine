@@ -37,6 +37,17 @@
     }
   }
 
+    @media screen and (max-width: 749px) {
+    #collection-{{ section.id }} .grid__item {
+      width: calc(50% - var(--grid-desktop-horizontal-spacing) * 2 / 3);
+      margin-left: 0rem;
+    }
+
+    #collection-{{ section.id }} .slider.slider--tablet {
+      scroll-padding-left: 0rem;
+    }
+  }
+
   /* The four --grid-*-spacing overrides that used to live here are gone: the
      gutter is now zeroed globally via spacing_grid_horizontal /
      spacing_grid_vertical in settings_data.json, so every product grid in the
@@ -46,24 +57,86 @@
 
     @media screen and (min-width: 750px) and (max-width: 989px) {
         #collection-{{ section.id }} .grid__item {
-        max-width: calc(33.33% - var(--grid-desktop-horizontal-spacing) * 2 / 3);
+        width: calc(33.33% - var(--grid-mobile-horizontal-spacing) * 2 / 2);
+        margin-left: 0rem;
+        }
+
+        #collection-{{ section.id }} .slider.slider--tablet {
+          scroll-padding-left: 0rem; 
         }
     }
 
     #collection-{{ section.id }} {
+      position: relative; 
       --vv-rule-color: var(--vv-hairline);
     }
 
-    #collection-{{ section.id }} .slider {
-      scroll-snap-type: x proximity; 
+    {% comment %}
+    The heading is an overlay on the row, not a band above it. Whether it shows
+    at all is a per-section setting, not a CSS decision: this style block is
+    emitted once per section instance, so hiding the title here would hide it on
+    every featured-collection in the theme. Blank `title` in the editor instead.
+    {% endcomment %}
+
+    #collection-{{ section.id }} .collection__title {
+      position: absolute;
+      top: 0; 
+      left: 0; 
+      padding: var(--vv-text-inset) 0 0 var(--vv-text-inset);
+      z-index: 1;
+    }
+
+    @media screen and (min-width: 990px) {
+      #collection-{{ section.id }} .slider {
+        scroll-snap-type: x proximity; 
+      }
+    }
+
+    #collection-{{ section.id }} .slider__slide {
+      --focus-outline-padding: 0rem; 
+    }
+
+    #collection-{{ section.id }} .slider-counter {
+      display: none; 
+    }
+
+    #collection-{{ section.id }} .product-grid {
+      margin-block-start: 0rem;
+      margin-block-end: 0rem;
+      background-color: var(--vv-hairline); 
     }
 
     #collection-{{ section.id }} slider-component {
       --desktop-margin-left-first-item: 0px;
     }
 
+      /* Lifts slider arrow buttons out of the flow, stretches them across and centers them vertically.
+      Pointer events makes sure that the product card buttons remain clickable beneath the stretched row.*/
+
     #collection-{{ section.id }} .slider-buttons {
-      --color-foreground: 255, 255, 255; 
+      position: absolute; 
+      top: 0; 
+      bottom: 0; 
+      left: 0; 
+      right: 0; 
+      justify-content: space-between;
+      pointer-events: none; 
+      --color-foreground: 0, 0, 0; 
+    }
+
+    #collection-{{ section.id }} .slider-button {
+      pointer-events: auto; 
+    } 
+
+    #collection-{{ section.id }} .slider-buttons .icon {
+      height: 1.5rem;
+    }
+
+    #collection-{{ section.id }} .collection__view-all {
+      position: absolute; 
+      bottom: 0; 
+      right: 0; 
+      padding: 0 var(--vv-text-inset) var(--vv-text-inset) 0;
     }
 
     /* Dawn tacks a 5rem pseudo-element onto the end of the desktop track so the
@@ -72,6 +145,10 @@
        sat 50px left of the hairlines at maximum scroll. This is the trailing twin
        of the --desktop-margin-left-first-item override above. */
     #collection-{{ section.id }} .slider--desktop::after {
+      padding-left: 0;
+    }
+    
+    #collection-{{ section.id }} .slider--tablet:after {
       padding-left: 0;
     }
 
@@ -86,12 +163,7 @@
       box-shadow: 0 -1px 0 var(--vv-rule-color);
     }
 
-    {% comment %}
-    One owner for the horizontal inset
-    {% endcomment %}
-
     #collection-{{ section.id }} .card__information {
-      --vv-text-inset: 2rem;
       padding-left: var(--vv-text-inset);
       padding-right: var(--vv-text-inset);
       --color-foreground: 0, 0, 0;
@@ -142,7 +214,6 @@
       position: relative;
     }
 
-
 {%- endstyle -%}
 
 {%- liquid
@@ -169,6 +240,20 @@
   if section.settings.enable_desktop_slider and products_to_display > section.settings.columns_desktop
     assign show_desktop_slider = true
   endif
+
+  # The wrapper is positioned and carries padding, so an empty one is still a
+  # hit target over the corner of the first card. Render it only when it has
+  # something in it. Mirrors the two conditions inside it.
+  assign show_collection_heading = false
+  if section.settings.title != blank
+    assign show_collection_heading = true
+  endif
+  if section.settings.description != blank
+    assign show_collection_heading = true
+  endif
+  if section.settings.show_description and section.settings.collection.description != empty
+    assign show_collection_heading = true
+  endif
 -%}
 
 <div
@@ -185,6 +270,7 @@
       part of the grid. Without it the heading starts on the grid's outer edge,
       flush with the first column's content.
     {%- endcomment -%}
+    {%- if show_collection_heading -%}
     <div class="collection__title title-wrapper title-wrapper--no-top-margin{% if show_mobile_slider %} title-wrapper--self-padded-tablet-down{% endif %}{% if show_desktop_slider %} collection__title--desktop-slider{% endif %}">
       {%- if section.settings.title != blank -%}
         <h2 class="title inline-richtext {{ section.settings.heading_size }}{% if settings.animations_reveal_on_scroll %} scroll-trigger animate--slide-in{% endif %}">
@@ -204,6 +290,7 @@
         </div>
       {%- endif -%}
     </div>
+    {%- endif -%}
 
     <slider-component class="slider-mobile-gutter{% if section.settings.full_width %} slider-component-full-width{% endif %}{% if show_desktop_slider %} slider-component-desktop{% endif %}{% if settings.animations_reveal_on_scroll %} scroll-trigger animate--slide-in{% endif %}">
       <ul

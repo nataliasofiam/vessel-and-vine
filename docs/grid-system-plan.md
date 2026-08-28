@@ -1,43 +1,39 @@
 # Consistent grid — state and next steps
 
-Handoff notes. **Parts 1 through 6, plus 7c, 7b and 7d, are committed and the
-grid system works.** The hero panels line up with the product columns at every
-breakpoint, driven by three settings; glass and distortion share one definition
-of "outer"; the gutter is zeroed theme-wide. The scaffolding (ruler, empty
-stubs) is deleted. The hairlines are one page-wide overlay in
+Handoff notes. **Parts 1 through 6, and all of Part 7, are done.** The hero
+panels line up with the product columns at every breakpoint, driven by three
+settings; glass and distortion share one definition of "outer"; the gutter is
+zeroed theme-wide. The hairlines are one page-wide overlay in
 `snippets/vv-grid-lines.liquid`, which also owns the line colour for the whole
-theme. Glass blur and tint now live in `snippets/vv-tokens.liquid`.
+theme. Glass blur, tint and the horizontal text inset live in
+`snippets/vv-tokens.liquid`.
 
-**Part 7 is being built in the order 7c → 7b → 7d → 7a**, decided 2026-08-14.
-7c first because the per-item `:nth-child` hairline rules would break in 7b's
-scroller, so removing that coupling had to come first. **7a is settled: the
-heading gets rebuilt on the grid** — title in one cell, "View all" in another —
-not removed. That supersedes both the original request and the Part 6 decision.
+**Part 7 was built in the order 7c → 7b → 7d → 7a**, decided 2026-08-14, with
+7a finished 2026-08-28. `featured-collection` is now a horizontal scroller
+whose columns rest on the hairlines at desktop, and the section title, both
+slider arrows and the "View all" action all sit *inside* the row rather than
+above and below it.
 
-**7b is done and verified** — the product grid is a horizontal scroller now,
-driven by a custom wheel handler, and the columns come to rest on the hairlines
-at every position tested. That was the thing this whole branch is about.
+**Next is tablet and mobile snapping** — the one part of the grid that has
+never worked. Below 990px the columns do not line up with the overlay at all,
+and not by accident: three Dawn rules describe a different design. See "Next —
+tablet and mobile snapping".
 
-**7d is done** — the product title and price now sit *on* the lower portion of
-each image rather than below it, over a masked pseudo-element frost that fades
-to the right. It changed shape mid-build (the original plan indented the text
-while leaving it below the image) and it pulled a `vv-` token layer into
-existence along the way. See both "Done" sections.
+**Two corrections to earlier notes in this file:**
 
-**Fix this first, before anything else:** the two mask declarations in
-`featured-collection.liquid` disagree — `mask-image` fades from 60% and
-`-webkit-mask-image` from 50%, so Safari renders a different card from every
-other browser. Known at commit time; see "Open after 7d".
-
-**Next is 7a**, the last piece of Part 7. A design decision added 2026-08-19
-reaches across it: the section title, the "View all" action, the product names
-*and* the slider arrows should all sit **inside** the row, on the grid, rather
-than above and below it. 7d covered the product names. The arrows are new work
-with no reference to copy — the reference puts its arrows outside the row.
+- The warning that the two mask declarations in `featured-collection.liquid`
+  disagree — `mask-image` at 60% against `-webkit-mask-image` at 50% — was
+  **already false when it was written**. Both read `60%`, and `git log -p`
+  shows they were committed that way in `5438ec41`. Nothing was fixed because
+  nothing was broken.
+- 7a was planned as a heading row *above* the products, mirroring the
+  reference's `home_collection_info`. It was not built that way, and the plan
+  text further down still describes the version that was not built. See "Done
+  — Part 7a".
 
 **Knowingly incomplete:** the footer and header are still opaque so the lines
 stop at both ends of the page, and tablet/mobile columns do not line up with
-the overlay at all yet. See "Still open after Part 7b".
+the overlay. See "Still open after Part 7a".
 
 **Part 5 was moved ahead of Part 4b**, against the original order. Two reasons,
 both worth keeping: Part 5 fixed a visible defect while 4b is a cleanup with
@@ -94,8 +90,11 @@ Branch `consistent-grid`. Commits so far:
 | `79eb7f8f` | featured collection becomes a scroller — **Part 7b**, desktop only |
 | `e3501c0d` | scroll settling lands on whole pixels — **Part 7b fix** |
 | `5438ec41` | glass tokens move to `vv-tokens.liquid`; product text moves onto the image — **token layer + Part 7d** |
+| `483cb9da` | record the token layer and Part 7d commit hash |
+| *uncommitted* | title, arrows and "View all" move into the row — **Part 7a**. Record the hash here once committed |
 
-Branch `consistent-grid`. Nothing is broken. **Parts 1–6 are all complete.**
+Branch `consistent-grid`. Nothing is broken. **Parts 1–6 and all of Part 7 are
+complete.**
 
 **Part 4b was done last, after Part 5**, reversing the original order — see the
 note at the top of this file for why.
@@ -1117,7 +1116,212 @@ but has `z-index: auto`, so it creates **no stacking context**, and a negative
 
 ---
 
-## Next: Part 7 — featured collection as a full-width scroller
+## Done — Part 7a, the heading, arrows and action move into the row
+
+Built 2026-08-26 to 2026-08-28. **This is not what the plan below describes.**
+The plan called for a heading row *above* the products, mirroring the
+reference's `home_collection_info`. What was built follows the design decision
+recorded 2026-08-19 instead: the section title, the "View all" action, the
+product names *and* the slider arrows all sit **inside** the row. 7d had
+already moved the product names; 7a did the other three.
+
+### What exists now
+
+Four overlays on one row, all scoped with `#collection-{{ section.id }}`:
+
+| Element | Position | Inset |
+| --- | --- | --- |
+| `.collection__title` | top-left, `z-index: 1` | `--vv-text-inset` on top and left |
+| `.slider-buttons` | stretched to all four edges of the row, `pointer-events: none` | none |
+| `.slider-button` | pushed to both ends by `justify-content: space-between`, `pointer-events: auto` | flush |
+| `.collection__view-all` | bottom-right, no `z-index` | `8px` |
+
+`.slider-counter` — Dawn's `n / total` readout — is `display: none`. Safe to
+hide or delete outright: `assets/global.js:774` guards its updates with a null
+check, so the slider JS does not care whether it exists.
+
+**The height collapse is 7d's trick, applied twice more.** With the title, the
+buttons and the action all out of flow, the only in-flow child left under
+`#collection-{{ section.id }}` is `slider-component`, and the only in-flow
+child under that is the `<ul>`. So the section's height *is* the row's height,
+which is what makes `top: 0` and `bottom: 0` mean the row's top and bottom
+edges rather than some outer box's.
+
+**Order mattered inside 7a.** The arrows had to leave flow before "View all"
+could be pinned to `bottom: 0` — until they did, the bottom of the section was
+the bottom of the buttons strip, not the bottom of the row. Same shape of
+dependency that put 7c ahead of 7b.
+
+**Two `z-index` answers, in opposite directions.** Positioned siblings with
+`z-index: auto` paint in DOM order. `.collection__title` comes *before*
+`slider-component`, so without an explicit `z-index` the product images bury
+it. `.collection__view-all` comes *after*, so it paints on top for free and
+declares nothing. Same rule; DOM order decides which way it cuts. Note this is
+the mirror of 7d, where the fix was to make the children positioned rather than
+to reach for `z-index` at all.
+
+**`pointer-events` is load-bearing.** `.slider-buttons` is stretched to the full
+width *and* height of the row, which makes it an invisible sheet over every
+product link. It carries `pointer-events: none`; `.slider-button` carries
+`pointer-events: auto` to get itself back. Both halves are required, because
+`pointer-events` **is an inherited property** — the buttons inherit `none` from
+their container. Two traps worth recording: the SVG-only values (`painted`,
+`visiblePainted`, …) are treated as `auto` on HTML elements, so they silently
+do nothing; and `none` suppresses **pointer hit-testing only**, leaving the
+buttons tabbable and operable by keyboard either way.
+
+### Five things fixed along the way
+
+None of these were part of 7a. All of them were exposed by it.
+
+**1. `--vv-text-inset` moved to the token layer.** It had been declared inside
+the `.card__information` rule, where only that element's subtree could read it.
+The heading is not in that subtree, so no selector could have reached it — this
+was a blocker, not a tidy-up. It now sits on `:root` in
+`snippets/vv-tokens.liquid` beside the glass tokens, which closes half of the
+migration the token-layer section left open. `--vv-hairline` still lives in
+`vv-grid-lines.liquid`.
+
+**2. The `<ul>`'s user-agent margin.** `.grid` (`assets/base.css:894-902`) sets
+`margin-bottom` and `padding` but never `margin-top`, so the browser's own
+default for `<ul>` — `margin-block-start: 1em` — survives untouched. That is
+**16px**, which is why the number matched nothing in a theme whose rem is 10px.
+It had always been there, hidden inside `.section-…-padding`'s 44px, because
+padding on a parent blocks margin collapsing. Zeroing that padding let it
+escape: it collapsed up through `slider-component`, `.collection` and
+`div.color-scheme-1`, and stopped at `#shopify-section-…`, which is a **flex
+item** — `.content-for-layout` is a flex column (`assets/base.css:154-158`) —
+and flex items do not collapse margins with their children. Both ends are now
+zeroed on `#collection-… .product-grid`.
+
+**3. `--focus-outline-padding`, not `padding-top`.** Dawn reserves vertical room
+inside each slide so focus rings and card shadows are not clipped by the scroll
+track: `max(var(--focus-outline-padding), var(--shadow-padding-top))` at
+`assets/component-slider.css:107`. With `card_shadow_opacity` at `0` the shadow
+arm resolves to `0`, so the 5px came entirely from the focus-outline arm. **The
+fix is to redeclare the variable, not the padding.** One declaration reaches
+all four rules that read it — `:107`, `:108`, `:112`, `:204` — at every
+breakpoint. Overriding `padding-top` directly fixed ≤989 and did nothing at
+desktop, where Dawn reserves its space through `padding-bottom` instead; that
+asymmetry is what made the bug look breakpoint-specific. The cost is focus-ring
+clearance, accepted because 7d had already shrunk the link box to
+`.card__information`, well inside the card.
+
+**4. `image_ratio` is `portrait`, not `adapt`.** Under `adapt` each card's media
+box takes its own image's aspect ratio — and since 7d made `.card__content`
+absolute, a card's height *is* its image's height. The `<li>`s stretch to the
+tallest card; the `.card-wrapper` inside them does not. Seven of eight cards
+sat 3px short and leaked page background beneath them. A fixed ratio makes
+every card the same height structurally instead of by luck of the catalogue,
+which matters more here than in stock Dawn because the whole design rests on
+the row reading as one band.
+
+**5. Subpixel column seams.** At four columns each `.grid__item` is 25% of a
+viewport that is rarely divisible by four — measured at `432.95px` — so
+adjacent edges round to different device pixels and some pairs leave a
+one-pixel gap. The boxes tile exactly (each `left` is the previous `left` plus
+the width, to within float error); this is **rasterization, not layout**, and
+no width fixes it. `#collection-… .product-grid` now carries a background so a
+seam reveals that instead of the page. It should be `--vv-hairline` rather than
+a literal colour: the seams fall precisely on column boundaries, which is where
+this design draws lines anyway. **This deliberately contradicts `vv-no-bg`** —
+the section otherwise paints nothing so the overlay shows through — and it is
+safe only because the track is completely covered by cards except at those
+seams, and 7c already established that product images interrupt the hairlines.
+It needs a comment in the code saying so, or it reads as a mistake.
+
+### The legibility decision
+
+**Stage E was closed by decision rather than by code, on 2026-08-28.** All four
+overlays are black type on bare photography. That is legible today only because
+this catalogue's product shots are near-white — the same contingency 7d
+recorded about the product names. The answer chosen is a **content constraint:
+product photographs must have white backgrounds.**
+
+Two consequences, both accepted deliberately:
+
+- **Nothing in the theme enforces it.** The failure mode is silent — a
+  lifestyle shot uploaded two years from now makes four overlays vanish at
+  once, with nothing in the code pointing at why. This paragraph is the
+  enforcement.
+- **7d's frost is now insurance, not structure.** It exists precisely to remove
+  this dependency. Under the constraint it renders nothing visible and costs a
+  `backdrop-filter` per card on a scrolling row. Kept — eight cards is cheap
+  and it is already written — but it is no longer load-bearing, and the three
+  tuning questions left open after 7d are moot unless the constraint is
+  dropped.
+
+### Still open after Part 7a
+
+- **Tablet and mobile do not align.** Unchanged since 7b, and now the next
+  piece of work. See below.
+- **The three insets disagree.** Title 20px, "View all" a hardcoded 8px, arrows
+  0. Three overlays on one grid, three numbers, in a theme whose rem is 10px
+  and which has a token for exactly this. Any of them could be right; none of
+  them was decided.
+- **7d shrank the clickable area of every card.** `.card__heading a::after`
+  (`assets/component-card.css:352-358`) is `position: absolute` with `inset: 0`
+  and is meant to resolve against `.card-wrapper`, making the whole card a link
+  target. 7d gave `.card > .card__content > *` `position: relative`, and
+  `.card__information` matches it — so the overlay now resolves against the
+  text block, and only the text strip is clickable, not the photograph. Found
+  while checking a `z-index` during 7a; not investigated or fixed.
+- **The caret size is capped by its wrapper.** `.slider-buttons .icon` is set to
+  `1.5rem`, but `.svg-wrapper` is 20px wide (`assets/base.css:652-658`) and the
+  glyph's `viewBox` is `0 0 10 6`, so `preserveAspectRatio` scales it to 20 × 12
+  and centres it in a 15px box. Raising the height alone does nothing further;
+  the wrapper is the next knob.
+- **The horizontal row rules are still undecided.** `box-shadow: 0 -1px 0
+  var(--vv-rule-color)` on `.grid__item` survives from Parts 2–3. 7c predicted
+  7b would decide it; 7b, 7d and 7a all did not. There is still one row.
+- **The arrows are still not designed** — only made legible, and now black
+  rather than white.
+
+---
+
+## Next — tablet and mobile snapping
+
+The one part of the grid that has never worked. Desktop columns rest on the
+hairlines exactly, verified in 7b. Below 990px they do not line up at all, and
+not by accident: three Dawn rules describe a different design.
+
+**What is in the way**, all in `assets/base.css` under the `grid--peek` path:
+
+- `:1066` — `min-width: 35%` on the item. Dawn is deliberately showing a sliver
+  of the next card; that is the "peek" the class is named for, and it ignores
+  the column count entirely.
+- `:1070` — a `1.5rem` left margin on the first item.
+- `:1075` — the trailing `:after` pad.
+
+Measured at a 194px viewport during 7b: first item at 15px, item width 62.64 —
+both exactly those two rules, not a rounding artefact.
+
+**The desktop fix is the model.** 7b solved the same three problems at ≥990 with
+four scoped overrides: `--desktop-margin-left-first-item: 0px`, zeroing
+`.slider--desktop::after`'s padding, and the two width calcs. The tablet and
+mobile paths need the same treatment aimed at `grid--peek`'s numbers instead.
+
+**Decide before starting: keep `grid--peek` at all?** `swipe_on_mobile` is
+`true` in `templates/index.json`, which switches on a design — the peek sliver
+— that this grid does not want. Turning it off changes which Dawn rules apply
+and may be less work than overriding each of them one by one; it also gives up
+the affordance that tells a mobile visitor the row scrolls. That trade is the
+first decision, not an implementation detail.
+
+**Also unresolved at these widths:** the section renders `slider--tablet` at
+*all* widths — the markup applies it whenever `show_mobile_slider` is true —
+and `slider--desktop` above 990. Several of the rules fixed in 7a turned out to
+be breakpoint-specific for exactly this reason. Expect the same shape of
+surprise here.
+
+---
+
+## Part 7 as originally planned — kept for the record
+
+> **All four sub-parts are done.** This section is the plan as written on
+> 2026-08-12, left unedited so the reasoning survives. Where it disagrees with
+> what was built — most sharply on 7a — the "Done" sections above are
+> authoritative.
 
 Three changes requested 2026-08-12, moving `featured-collection` toward the
 reference at <https://www.sotf.com/en>.
@@ -1198,10 +1402,12 @@ asks for.
 
 ### The work
 
-**7a — the heading. DECIDED 2026-08-14: rebuild it on the grid**, the second
-reading below. Title in one cell, "View all" in another, both aligned to the
-overlay lines. Do this last, after 7b and 7d. The two readings, kept for the
-reasoning:
+**7a — the heading. DONE, but NOT as planned here — see "Done — Part 7a"
+above.** This paragraph decided on 2026-08-14 to rebuild the heading as a row
+above the products, title in one cell and "View all" in another. The design
+decision of 2026-08-19 overrode it: the title and the action went *inside* the
+row instead, along with the arrows. The two readings below are kept for the
+reasoning, but neither is what shipped:
 
 - *Remove it*, as requested. Note that blanking `title` in
   `templates/index.json` only hides the `<h2>` — line 123 wraps that in
@@ -1282,12 +1488,19 @@ column edge while the text clears the line, which is what the reference does.
 - ~~One product row, full width, scrolling horizontally, no scrollbar on
   `<body>`~~ — **done in 7b, and alignment verified at desktop.** Tablet and
   mobile scroll but do not align
-- Whatever was decided in 7a, aligned to the same lines as everything else
+- ~~Whatever was decided in 7a, aligned to the same lines as everything else~~
+  — **done in 7a**, though "aligned to the same lines" stopped describing the
+  goal once the title, arrows and action moved inside the row. The title is
+  inset from the first column edge by `--vv-text-inset`; the arrows sit flush
+  to both row edges; "View all" is inset 8px from the bottom-right. The three
+  insets do not agree with each other yet
 - ~~Product names clear of the hairlines; images still flush~~ — **superseded
   by 7d.** The names moved onto the images, so "clear of the hairlines" no
   longer describes the goal. The image is still flush to the column edge; the
-  text is inset `--vv-text-inset` from it and backed by the frost. The
-  dark-image case is the outstanding acceptance test
+  text is inset `--vv-text-inset` from it and backed by the frost. **The
+  dark-image case was closed by decision in 7a, not by code** — product
+  photographs are now constrained to white backgrounds, which makes the frost
+  insurance rather than structure
 - The hero still lines up with the overlay columns
 
 ---
