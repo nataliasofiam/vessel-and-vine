@@ -96,7 +96,7 @@ Branch `consistent-grid`. Commits so far:
 | `5438ec41` | glass tokens move to `vv-tokens.liquid`; product text moves onto the image — **token layer + Part 7d** |
 | `483cb9da` | record the token layer and Part 7d commit hash |
 | `8736b97a` | title, arrows and "View all" move into the row — **Part 7a** — plus tablet and mobile snapping |
-| *uncommitted* | the card is a link again — **Stage F**, undoing 7d's shrunken hit area. Record the hash here once committed |
+| `68786be5` | the card is a link again — **Stage F**, undoing 7d's shrunken hit area |
 
 Branch `consistent-grid`. Nothing is broken. **Parts 1–6 and all of Part 7 are
 complete.**
