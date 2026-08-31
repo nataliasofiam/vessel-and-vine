@@ -18,10 +18,17 @@ above and below it.
 the grid that had never worked. All three breakpoints now rest on the
 hairlines. See "Done — tablet and mobile snapping".
 
-**There is no next part queued.** What remains are the loose ends listed under
-"Still open after Part 7a": the header and footer are still opaque so the lines
-stop at both ends of the page, the horizontal row rules have never been
-decided, and the arrows are legible but not designed.
+**Work in progress: the breakpoint pair.** Started 2026-08-29. The two `@media`
+blocks in `featured-collection` had crossed gutter variables and wrong
+fractions; **that half is fixed and uncommitted in the working tree**, and the
+tidying half — moving the blocks together, a stale comment, indentation, and the
+uncommented `.slider--tablet:after` — is not started. See "In progress — the
+breakpoint pair".
+
+**No further part is queued after it.** What remains beyond it are the loose ends
+listed under "Still open after Part 7a": the header and footer are still opaque
+so the lines stop at both ends of the page, the horizontal row rules have never
+been decided, and the arrows are legible but not designed.
 
 **Two corrections to earlier notes in this file:**
 
@@ -1347,18 +1354,87 @@ its weak mode with nothing left in charge of the strong one.
 
 ### Open
 
-- **The gutter arithmetic in the mobile width override is the three-column
-  share** (`* 2 / 3`) copied from the tablet rule, and it reads the desktop
-  spacing variable rather than `--grid-mobile-horizontal-spacing`. Both resolve
-  to `0` today so nothing is visibly wrong — but the gutter is a theme setting,
-  and this one rule would silently mis-size if it ever moved off zero while the
-  other three stayed correct.
+- ~~**The gutter arithmetic in the mobile width override is the three-column
+  share**~~ **Fixed 2026-08-29, uncommitted in the working tree.** See "In
+  progress — the breakpoint pair" below. The note as written was also
+  *understated*: it flagged only the mobile rule, but **both** blocks were
+  crossed, in opposite directions.
 - **The two breakpoint blocks are 25 lines apart** in the style block, with the
   section padding rules and an unrelated comment between them. They do the same
-  job and should read as a pair.
+  job and should read as a pair. **Still open** — the remaining half of the work
+  in progress below.
 - **The `.slider--tablet:after` override has no comment**, though it sits beside
   the `.slider--desktop::after` one, whose comment describes only the desktop
-  half.
+  half. **Still open**, folded into the same task.
+
+---
+
+## In progress — the breakpoint pair
+
+Started 2026-08-29. **The arithmetic half is done and sitting uncommitted in the
+working tree; the arrangement half is not started.** Picked up because the doc
+had no next part queued, and of the loose ends this was the only one that was a
+real latent bug rather than a design decision still to be made.
+
+### Done — the crossed gutter variables
+
+Both `@media` blocks in `sections/featured-collection.liquid` carried the wrong
+spacing variable *and* the wrong fraction — two different errors that happened
+to cancel out to nothing at a zero gutter.
+
+| | Was | Now |
+| --- | --- | --- |
+| Mobile, ≤749, 2 col (`:42`) | `50% - var(--grid-desktop…) * 2 / 3` | `50% - var(--grid-mobile…) / 2` |
+| Tablet, 750–989, 3 col (`:60`) | `33.33% - var(--grid-mobile…) * 2 / 2` | `33.33% - var(--grid-desktop…) * 2 / 3` |
+
+Both now match Dawn's own forms at `assets/base.css:957` and `:952`.
+
+**The two variables are not interchangeable.** `layout/theme.liquid:206-208`
+derives both from one setting, and **mobile is desktop divided by 2**. They look
+identical today only because `config/settings_data.json:78` sets the gutter to
+`0`. Dawn's dividing line is 750px: below it the mobile variable, at 750 and
+above the desktop one — visible in `base.css:917` against `:925`, the same rule
+either side of a `min-width: 750px` query.
+
+**The fraction is `(N-1)/N`, and the two halves mean different things.** The
+numerator is *the number of gutters in the row*; the denominator is *the number
+of columns sharing them*. The check that catches every case without memorising a
+table: **multiply the per-column subtraction by N and see whether it equals the
+gutter the row actually contains.**
+
+- `g * 2 / 3` × 3 columns = `2g` ✓ — three columns, two gutters
+- `g / 3` × 3 = `g` ✗ — one gutter split three ways
+- `g * 2 / 2` × 3 = `3g` ✗ — the original; three gutters for a row that has two
+- `g / 2` × 2 = `g` ✓ — the mobile case, two columns and one gutter
+
+**Verified** by setting the theme's horizontal grid spacing to 20px and checking
+both breakpoints, then returning it to `0`. At a zero gutter the fix is
+invisible by construction — testing it at all meant making the variable matter.
+
+### Not started — the arrangement
+
+The two blocks still do not read as a pair. Four things to settle:
+
+1. They are 25 lines apart, with the unrelated `min-width: 750px`
+   `.section-…-padding` block and a `/* */` comment between them.
+2. **That comment is now stale.** It reads "the `calc()` below still reads
+   `--grid-desktop-horizontal-spacing`" — true when it sat above a single block,
+   false now that it has one block on each side reading two different variables.
+3. Indentation disagrees: the mobile block's selector is not indented inside its
+   query, and the tablet block carries four extra spaces relative to its
+   neighbours.
+4. `.slider--tablet:after` (`:150`) still has no comment, beside the
+   `.slider--desktop::after` one it is the twin of.
+
+**Before moving anything, confirm the move is safe** — whether `width`,
+`margin-left` or `scroll-padding-left` are set for these selectors anywhere else
+in the style block at equal specificity. The two queries are mutually exclusive,
+so their order relative to *each other* cannot matter; their order relative to
+the rest of the block is the open question.
+
+**Comment syntax is a real choice here**, not a style preference: `{% comment %}`
+is stripped by Liquid on the server, `/* */` ships to every visitor inside the
+`<style>` tag. The file already uses both.
 
 ---
 

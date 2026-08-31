@@ -38,32 +38,25 @@
   }
 
     @media screen and (max-width: 749px) {
-    #collection-{{ section.id }} .grid__item {
-      width: calc(50% - var(--grid-desktop-horizontal-spacing) * 2 / 3);
-      margin-left: 0rem;
-    }
+      #collection-{{ section.id }} .grid__item {
+        width: calc(50% - var(--grid-mobile-horizontal-spacing) / 2);
+        margin-left: 0rem;
+      }
 
-    #collection-{{ section.id }} .slider.slider--tablet {
-      scroll-padding-left: 0rem;
+      #collection-{{ section.id }} .slider.slider--tablet {
+        scroll-padding-left: 0rem;
+      }
     }
-  }
-
-  /* The four --grid-*-spacing overrides that used to live here are gone: the
-     gutter is now zeroed globally via spacing_grid_horizontal /
-     spacing_grid_vertical in settings_data.json, so every product grid in the
-     theme is full-bleed, not just this section. The calc() below still reads
-     --grid-desktop-horizontal-spacing, which now resolves to 0px from
-     theme.liquid rather than from here. */
 
     @media screen and (min-width: 750px) and (max-width: 989px) {
-        #collection-{{ section.id }} .grid__item {
-        width: calc(33.33% - var(--grid-mobile-horizontal-spacing) * 2 / 2);
+      #collection-{{ section.id }} .grid__item {
+        width: calc(33.33% - var(--grid-desktop-horizontal-spacing) * 2 / 3);
         margin-left: 0rem;
-        }
+      }
 
-        #collection-{{ section.id }} .slider.slider--tablet {
-          scroll-padding-left: 0rem; 
-        }
+      #collection-{{ section.id }} .slider.slider--tablet {
+        scroll-padding-left: 0rem;
+      }
     }
 
     #collection-{{ section.id }} {
@@ -139,16 +132,18 @@
       padding: 0 var(--vv-text-inset) var(--vv-text-inset) 0;
     }
 
-    /* Dawn tacks a 5rem pseudo-element onto the end of the desktop track so the
-       last card is not flush to the edge, and claws back one gutter's width via
-       margin-left. Our gutter is 0px, so the full 5rem survived and every column
-       sat 50px left of the hairlines at maximum scroll. This is the trailing twin
-       of the --desktop-margin-left-first-item override above. */
+    /* Dawn appends a pseudo-element to the end of each scroll track so the last
+       card is not flush to the edge, then claws back one gutter's width with a
+       negative margin-left. Our gutter is 0px, so nothing gets clawed back: the
+       padding survives in full and every column sits that far left of the
+       hairlines at maximum scroll. Zeroed on both tracks below — 5rem (50px)
+       from 990px up, 1.5rem (15px) below it, where .slider--tablet covers
+       mobile too despite the name. */
     #collection-{{ section.id }} .slider--desktop::after {
       padding-left: 0;
     }
-    
-    #collection-{{ section.id }} .slider--tablet:after {
+
+    #collection-{{ section.id }} .slider--tablet::after {
       padding-left: 0;
     }
 
