@@ -93,7 +93,7 @@
                 {%- when '@app' -%}
                   {% render block %}
                   {%- when 'scarcity' -%}
-                  {% render 'scarcityindicator', block: block, product: product %}
+                  {% render 'scarcityindicator', block: block, product: product, edition_fallback: block.settings.edition_size, dynamic_content: true %}
                 {%- when 'text' -%}
                   <p
                     class="product__text inline-richtext{% if block.settings.text_style == 'uppercase' %} caption-with-letter-spacing{% elsif block.settings.text_style == 'subtitle' %} subtitle{% endif %}"

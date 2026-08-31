@@ -1,7 +1,20 @@
+{% comment %}
+  This snippet is used to display a scarcity indicator for a product variant. It checks the availability of the selected variant and displays a message indicating whether the product is sold out, available, or how many units are left in stock. The indicator also includes an icon for visual representation.
+  Total edition size can be set in the edition_size metafield on the product, or it will default to edition_fallback, or then to 5 if it's not set anywhere. The low threshold is calculated as half of the edition size.
+
+  Accepts:
+  - product: {Object} Check for availability and inventory quantity
+  - block: {Object} The section block this indicator renders from, used only for its theme-editor attributes; omit it and the indicator becomes unselectable in the editor while the storefront is unaffected (optional)
+  - edition_fallback: {Integer} Edition size to use when the product has no edition_size metafield; falls back to 5 when omitted, so the indicator still renders (optional)
+  - dynamic_content: {Boolean} Whether to add aria-live="polite" to the indicator for screen readers; defaults to false (optional)
+
+  Usage:
+  {% render 'scarcityindicator', block: block, product: product, edition_fallback: block.settings.edition_size, dynamic_content: true %}
+{% endcomment %}
 {%- liquid
   assign variant = product.selected_or_first_available_variant
-  assign edition = block.settings.edition_size
   assign qty = variant.inventory_quantity
+  assign edition = product.metafields.custom.edition_size.value | default: edition_fallback | default: 5
   assign low_threshold = edition | divided_by: 2.0
 
   if variant.available == false
@@ -17,7 +30,7 @@
   endif
 -%}
 
-<p class="scarcity scarcity--{{ state }}" aria-live="polite" {{ block.shopify_attributes }}>
+<p class="scarcity scarcity--{{ state }}" {% if dynamic_content %} aria-live="polite" {% endif %} {% if block %} {{ block.shopify_attributes }} {% endif %}>
     <span class="scarcity__dot svg-wrapper" aria-hidden="true">
   {{- 'icon-inventory-status.svg' | inline_asset_content -}}
 </span>
