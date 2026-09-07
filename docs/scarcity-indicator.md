@@ -44,9 +44,9 @@ merchant-facing setting was the main call on this branch:
   silently degrades accessibility. It is passed as a literal `true` from the product
   page (variant switching changes the count) and omitted on cards (nothing changes).
 
-`show_scarcity`, the parameter still to be added in Stage 2, is the opposite case and
-*should* be a setting — whether to show remaining stock on collection cards is a
-merchandising choice, and the merchant is the one qualified to make it.
+`show_scarcity`, added in Stage 2, is the opposite case and *is* a setting — whether to
+show remaining stock on collection cards is a merchandising choice, and the merchant is
+the one qualified to make it.
 
 All of this works because `{% render %}` is scope-isolated: the snippet sees only what
 it is explicitly passed, so omitting an argument reliably yields `nil` rather than
@@ -87,52 +87,102 @@ picking up a same-named variable from the calling section.
   price render. Note the rename at the boundary — the snippet's parameter is `product`,
   the card's variable is `card_product`.
 
-Currently **unconditional**, so it shows in all seven sections that render cards. That is
-what Stage 2 fixes.
+At this point still **unconditional**, so it showed in all six sections that render cards
+(seven render sites — `featured-collection` has two). That is what Stage 2 fixed.
 
 ---
 
-## Next — Stage 2: make it a setting
+## Done — Stage 2: the setting (uncommitted)
 
-Model every step on the existing `show_rating` parameter, which appears in the same four
-places. After step 3 the indicators disappear from the cards; they come back at step 6.
+Modelled throughout on the existing `show_rating` parameter, which appears in the same
+four places. Line numbers below are post-edit.
 
 **`snippets/card-product.liquid`**
 
-1. Add `show_scarcity` to the `Accepts:` list (lines 4–19), matching the house format.
-2. Guard the render on line 211 behind it. Match the whitespace-marker style of the
-   `show_vendor` block at lines 166–169 — this is indented block markup, not the inside
-   of an HTML tag, so the constraints differ from the `<p>` in the snippet.
-3. Guard the stylesheet on line 28 with the same condition, nested inside the existing
-   `unless skip_styles`. Without this, all seven card-rendering sections download the CSS
-   even with the feature off. Check what happens on the first card when the setting is
-   off — specifically whether the loop still sets `skip_styles` to `true` afterwards.
+- Line 11: `show_scarcity` added to the `Accepts:` list, directly after `show_rating` so
+  the `show_*` toggles stay grouped. Note the list is internally inconsistent — most
+  entries carry an `(optional)` marker but `show_vendor` and `show_rating` do not. The new
+  entry follows its neighbours rather than the majority.
+- Lines 213–215: the render guarded behind `show_scarcity`, matching the whitespace-marker
+  style of the `show_vendor` block at 167–170 — `{%- if -%}` / `{%- endif -%}`, stripping
+  both ends, guarded line indented one level in. This is indented block markup, where the
+  surrounding whitespace is only newlines between elements, so aggressive stripping is
+  correct. That is the *opposite* call from the `<p>` inside the snippet, where stripping
+  ate the separators between HTML attributes.
+- Lines 29–31: the stylesheet guarded by the same condition, **nested inside** the existing
+  `unless skip_styles` rather than wrapped around it. Without the guard, all six
+  card-rendering sections download the CSS even with the feature off.
+
+> **The nesting direction is the trap in this stage.** Wrapping the whole `unless` block in
+> `if show_scarcity` would suppress all six stylesheets in it — rating, volume pricing,
+> price, quick-order-list, quantity-popover — whenever scarcity was off. The page still
+> renders and still looks broadly right, so nothing announces the mistake. Guard the one
+> line, never the block.
+>
+> Also fixed here: the first attempt added the guarded copy but left the original
+> unguarded `stylesheet_tag` in place above it, so the CSS shipped unconditionally and the
+> checkpoint looked like a nesting failure when it was a duplication one.
+
+**Resolved: can the snippet affect when `skip_styles` flips?** No. `skip_card_product_styles`
+exists only in `featured-collection.liquid` — initialised `false` at 325, passed in at 350,
+set `true` at 356, after the render call and inside the section's own loop. The snippet
+never sees that variable, only `skip_styles`, a copy of its value under a different name.
+`{% render %}` scope isolation means an `assign` inside the snippet is local and discarded
+on exit; there is no path back out to the caller. So the flip is unconditional and entirely
+the section's business, and the guard changes only *which* stylesheets card 1 emits, never
+*whether* card 1 is the one to emit them.
 
 **`sections/featured-collection.liquid`**
 
-4. Pass it through in the render call at lines 342–354, alongside
-   `show_rating: section.settings.show_rating` on line 349.
-5. Leave the second render call at line 378 alone — that is the no-collection placeholder
-   branch, which passes no `card_product`, so the
-   `{%- if card_product and card_product != empty -%}` wrapper on line 31 already stops
-   everything. Adding the argument there would be dead code.
-6. Add a `checkbox` setting to the schema near line 811. Two departures from `show_rating`:
-   use a plain literal `label` string rather than a `t:` translation key (no locale entries
-   exist for this, and adding them is a detour — the `scarcity` block at line 776 of
-   `main-product.liquid` already uses a literal), and decide the `default` deliberately.
-   A `default` only applies where the section's settings are not already recorded in the
-   JSON template, so changing it later will not move sections already placed.
+- Line 350: `show_scarcity: section.settings.show_scarcity,` passed through, mirroring
+  `show_rating` on 349.
+- Line 378 deliberately untouched. That is the no-collection placeholder branch, which
+  passes no `card_product`, so the `{%- if card_product and card_product != empty -%}`
+  wrapper on line 33 of the snippet already stops every card body inside it. Passing the
+  argument would be dead code that implies to the next reader that the branch supports the
+  feature.
+- Lines 819–824: a `checkbox` setting, with two departures from `show_rating`. The `label`
+  is a plain literal string rather than a `t:` translation key — no locale entries exist
+  for this, adding them is a detour, and a `t:` key with no matching entry renders as the
+  raw key text in the editor. The `scarcity` block in `main-product.liquid` already sets
+  that precedent.
 
-**Checkpoint:** toggle the checkbox off — indicators gone and no `component-scarcity.css`
-link in view-source; toggle on — indicators back, stylesheet present exactly once.
+### The `default: true` decision
+
+Every other toggle in this schema defaults `false`. This one does not, deliberately:
+showing remaining stock is the point of the feature, and a merchant who does not want it
+can untick it.
+
+Two consequences worth having written down:
+
+- **It reached the section already on the homepage.** A schema `default` applies only to
+  keys *absent* from the section's recorded settings in the JSON template. The
+  `featured_collection` section in `templates/index.json` has `show_vendor` and
+  `show_rating` recorded at lines 90–91 but no `show_scarcity` key, so the default applied
+  and the indicators returned without touching the editor. Once that section is opened and
+  saved in the editor, all current values get written into the JSON and later changes to
+  this default will no longer move it.
+- **"Always on" means "on wherever it is wired" — currently two sections of six.** A schema
+  default is per-section. `collage`, `main-product`, `main-search` and `related-products`
+  pass no `show_scarcity` at all, so they get `nil`, so off, whatever this default says.
+
+The alternative considered and rejected: make the *snippet* treat an omitted `show_scarcity`
+as on, which would reach all six at once. It breaks the `show_*` convention every other
+toggle in the file follows (omitted = off) and makes the stylesheet guard meaningless.
+Sections get wired deliberately; omission does not mean yes.
+
+**Checkpoint (passed):** indicators back on the cards with no editor visit;
+`component-scarcity.css` present exactly once in view-source; the checkbox appears in the
+theme editor already ticked; unticking removes both the indicators and the stylesheet
+link; the product page is unchanged throughout — it passes `block`, `edition_fallback` and
+`dynamic_content` and knows nothing about `show_scarcity`.
 
 ## Then — Stage 3: the collection page grid
 
 `sections/main-collection-product-grid.liquid:172` renders the same card snippet. Repeat
 the Stage 2 pattern there, unaided. The section's schema is separate, so it needs its own
-setting.
-
----
+setting. The card-snippet half of the work is already done and shared; only the
+pass-through and the schema entry are new.
 
 ## Still open
 
@@ -144,8 +194,10 @@ setting.
   the live region onto a wrapper that *survives* the swap and let only the inner text be
   replaced. **Never verified on a real screen reader.**
 - **The other card-rendering sections** — `related-products`, `main-search`, `collage`,
-  and the card inside `main-product` itself — have no setting and no decision yet. They
-  inherit whatever `show_scarcity` defaults to once Stage 2 lands.
+  and the card inside `main-product` itself — have no setting and no decision yet. Stage 2
+  settled what happens to them in the meantime: they pass no `show_scarcity`, so they get
+  `nil`, so the indicator is **off** in all four regardless of the `default: true` on
+  `featured-collection`. Each needs its own pass-through and schema entry to turn on.
 - **`edition_fallback` is unreachable from cards.** Any product without a
   `custom.edition_size` metafield reads "N of 5 available" on a card regardless of its
   real edition. Either backfill the metafield across products, or decide the card should
@@ -153,6 +205,15 @@ setting.
 - **Colours are literal hex** in `component-scarcity.css` (lines 2–5), while the rest of
   the theme's shared values live in `snippets/vv-tokens.liquid`. Worth deciding whether
   these four belong there too.
+- **The `featured-collection` checkbox label is still first-draft.**
+  `"Scarcity Indicator, i.e. X of Y available"` does three jobs in one string. The
+  neighbouring `t:` keys resolve to bare sentence-case noun phrases — `show_vendor` →
+  "Vendor", `show_rating` → "Product rating" — because the checkbox itself supplies the
+  verb, and Shopify puts any explanation in a separate `info` key rendered as grey helper
+  text. The current label is Title Case, leads with the developer phrase "scarcity
+  indicator" rather than what the merchant sees, and its `i.e.` claims a single text form
+  when the snippet also renders "Sold out" and "Available". Reshape as a short noun phrase
+  plus an optional `info`.
 - **Nit:** the `scarcity` block's schema in `sections/main-product.liquid` closes with
   `]` and `}` at lines 780–781 indented two levels shallower than every sibling block.
   Valid JSON, just untidy.
