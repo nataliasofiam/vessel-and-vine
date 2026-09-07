@@ -13,7 +13,6 @@
   "sections": {
     "announcement-bar": {
       "type": "announcement-bar",
-      "disabled": true,
       "blocks": {
         "announcement-bar-0": {
           "type": "announcement",
@@ -26,6 +25,7 @@
       "block_order": [
         "announcement-bar-0"
       ],
+      "disabled": true,
       "settings": {
         "auto_rotate": false,
         "change_slides_speed": 5,
@@ -41,7 +41,6 @@
       "settings": {
         "menu": "main-menu",
         "wordmark": "V&V",
-        "show_cart": true,
         "gutter": 16,
         "fillet": 20,
         "corner_radius": 20,
